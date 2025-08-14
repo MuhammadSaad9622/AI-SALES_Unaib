@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Sales AI Panel</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div id="sales-ai-panel" class="panel">
+    <div class="panel-header">
+      <h3>Sales AI Assistant</h3>
+      <div class="panel-controls">
+        <button id="toggle-transcription" class="control-button">
+          <span class="icon">🎙️</span>
+        </button>
+        <button id="toggle-suggestions" class="control-button">
+          <span class="icon">💡</span>
+        </button>
+        <button id="close-panel" class="control-button">
+          <span class="icon">✕</span>
+        </button>
+      </div>
+    </div>
+    
+    <div class="panel-tabs">
+      <button class="tab-button active" data-tab="transcript">Transcript</button>
+      <button class="tab-button" data-tab="suggestions">Suggestions</button>
+    </div>
+    
+    <div class="panel-content">
+      <div id="transcript-tab" class="tab-content active">
+        <div id="sales-ai-transcript" class="transcript-container"></div>
+      </div>
+      
+      <div id="suggestions-tab" class="tab-content">
+        <div id="sales-ai-suggestions" class="suggestions-container"></div>
+      </div>
+    </div>
+    
+    <div class="panel-footer">
+      <button id="copy-suggestions" class="footer-button">
+        Copy Suggestions
+      </button>
+      <button id="open-dashboard" class="footer-button">
+        Open Dashboard
+      </button>
+    </div>
+  </div>
+  
+  <script src="panel.js"></script>
+</body>
+</html>

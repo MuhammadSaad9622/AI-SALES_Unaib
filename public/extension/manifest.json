@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "Sales AI Assistant",
+  "version": "1.0",
+  "description": "AI-powered real-time meeting assistance for sales professionals",
+  "icons": {
+    "16": "icons/icon16.svg",
+    "48": "icons/icon48.svg",
+    "128": "icons/icon128.svg"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://meet.google.com/*",
+        "*://zoom.us/*",
+        "*://*.zoom.us/*",
+        "*://teams.microsoft.com/*",
+        "*://*.teams.microsoft.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["panel/panel.css"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["panel/panel.html", "panel/panel.js", "panel/panel.css"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.svg",
+      "48": "icons/icon48.svg",
+      "128": "icons/icon128.svg"
+    }
+  },
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "http://localhost:3002/*",
+    "*://meet.google.com/*",
+    "*://zoom.us/*",
+    "*://*.zoom.us/*",
+    "*://teams.microsoft.com/*",
+    "*://*.teams.microsoft.com/*",
+    "*://teams.live.com/*",
+    "*://*.teams.live.com/*"
+  ]
+}

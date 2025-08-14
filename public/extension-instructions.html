@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Sales Assistant Extension - Installation Instructions</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #0066cc;
+      --primary-dark: #0052a3;
+      --accent-color: #ff3b30;
+      --success-color: #34c759;
+      --warning-color: #ff9500;
+      --text-color: #333333;
+      --text-light: #666666;
+      --bg-color: #f5f7fa;
+      --bg-card: #ffffff;
+      --border-color: #e1e4e8;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: var(--text-color);
+      background-color: var(--bg-color);
+      padding: 0;
+      margin: 0;
+    }
+    
+    header {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 2rem 0;
+      text-align: center;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+    
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+    
+    h2 {
+      font-size: 2rem;
+      font-weight: 600;
+      margin: 2rem 0 1rem;
+      color: var(--primary-color);
+    }
+    
+    h3 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 1.5rem 0 1rem;
+    }
+    
+    p {
+      margin-bottom: 1rem;
+    }
+    
+    .lead {
+      font-size: 1.25rem;
+      font-weight: 500;
+      margin-bottom: 2rem;
+    }
+    
+    .card {
+      background-color: var(--bg-card);
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    
+    .steps {
+      counter-reset: step-counter;
+      list-style-type: none;
+      padding-left: 0;
+    }
+    
+    .step {
+      position: relative;
+      padding-left: 3rem;
+      margin-bottom: 2rem;
+      counter-increment: step-counter;
+    }
+    
+    .step::before {
+      content: counter(step-counter);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 2rem;
+      height: 2rem;
+      background-color: var(--primary-color);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+    }
+    
+    .step h3 {
+      margin-top: 0;
+    }
+    
+    .browser-tabs {
+      display: flex;
+      gap: 1rem;
+      margin: 2rem 0;
+      flex-wrap: wrap;
+    }
+    
+    .browser-tab {
+      padding: 1rem 2rem;
+      background-color: var(--bg-card);
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+    }
+    
+    .browser-tab.active {
+      border-color: var(--primary-color);
+      background-color: rgba(0, 102, 204, 0.05);
+    }
+    
+    .browser-tab:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .browser-content {
+      display: none;
+    }
+    
+    .browser-content.active {
+      display: block;
+    }
+    
+    .screenshot {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      margin: 1.5rem 0;
+      border: 1px solid var(--border-color);
+    }
+    
+    .note {
+      background-color: rgba(255, 149, 0, 0.1);
+      border-left: 4px solid var(--warning-color);
+      padding: 1rem;
+      margin: 1.5rem 0;
+      border-radius: 0 8px 8px 0;
+    }
+    
+    .tip {
+      background-color: rgba(52, 199, 89, 0.1);
+      border-left: 4px solid var(--success-color);
+      padding: 1rem;
+      margin: 1.5rem 0;
+      border-radius: 0 8px 8px 0;
+    }
+    
+    .warning {
+      background-color: rgba(255, 59, 48, 0.1);
+      border-left: 4px solid var(--accent-color);
+      padding: 1rem;
+      margin: 1.5rem 0;
+      border-radius: 0 8px 8px 0;
+    }
+    
+    .button {
+      display: inline-block;
+      background-color: var(--primary-color);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: background-color 0.2s ease;
+      margin-top: 1rem;
+    }
+    
+    .button:hover {
+      background-color: var(--primary-dark);
+    }
+    
+    footer {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 2rem 0;
+      margin-top: 4rem;
+      text-align: center;
+    }
+    
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin: 2rem 0;
+    }
+    
+    .feature {
+      background-color: var(--bg-card);
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s ease;
+    }
+    
+    .feature:hover {
+      transform: translateY(-5px);
+    }
+    
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      background-color: rgba(0, 102, 204, 0.1);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+    
+    .feature-icon svg {
+      width: 24px;
+      height: 24px;
+      color: var(--primary-color);
+    }
+    
+    .feature h3 {
+      margin-top: 0;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 0 1rem;
+      }
+      
+      h1 {
+        font-size: 2rem;
+      }
+      
+      h2 {
+        font-size: 1.75rem;
+      }
+      
+      h3 {
+        font-size: 1.25rem;
+      }
+      
+      .lead {
+        font-size: 1.1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>AI Sales Assistant Extension</h1>
+      <p class="lead">Installation & Usage Instructions</p>
+    </div>
+  </header>
+  
+  <main class="container">
+    <section class="card">
+      <h2>Overview</h2>
+      <p>The AI Sales Assistant Chrome Extension enhances your sales calls by providing real-time AI-powered suggestions and live transcription. It works with popular meeting platforms like Google Meet, Zoom, and Microsoft Teams.</p>
+      
+      <div class="features">
+        <div class="feature">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </div>
+          <h3>Real-time AI Suggestions</h3>
+          <p>Get contextual sales tips and responses during your calls to help close deals more effectively.</p>
+        </div>
+        
+        <div class="feature">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+          </div>
+          <h3>Live Transcription</h3>
+          <p>Automatic speech-to-text conversion of your sales conversations for real-time reference.</p>
+        </div>
+        
+        <div class="feature">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+            </svg>
+          </div>
+          <h3>Multi-platform Support</h3>
+          <p>Works seamlessly with Google Meet, Zoom, and Microsoft Teams for all your virtual meetings.</p>
+        </div>
+      </div>
+    </section>
+    
+    <section>
+      <h2>Installation Instructions</h2>
+      
+      <div class="browser-tabs">
+        <div class="browser-tab active" data-browser="chrome">Google Chrome</div>
+        <div class="browser-tab" data-browser="edge">Microsoft Edge</div>
+        <div class="browser-tab" data-browser="firefox">Mozilla Firefox</div>
+      </div>
+      
+      <div class="browser-content active" id="chrome-content">
+        <ol class="steps">
+          <li class="step">
+            <h3>Download the Extension</h3>
+            <p>If you haven't already, download the extension ZIP file from your AI Sales Assistant dashboard.</p>
+            <a href="/extension.zip" class="button" download>Download Extension</a>
+          </li>
+          
+          <li class="step">
+            <h3>Extract the ZIP File</h3>
+            <p>Right-click the downloaded ZIP file and select "Extract All..." (Windows) or double-click the file (Mac) to extract its contents to a folder.</p>
+            <div class="tip">Make note of where you extract the files. You'll need this location in the next step.</div>
+          </li>
+          
+          <li class="step">
+            <h3>Open Chrome Extensions Page</h3>
+            <p>Open Google Chrome and navigate to <code>chrome://extensions/</code> by typing it in the address bar.</p>
+          </li>
+          
+          <li class="step">
+            <h3>Enable Developer Mode</h3>
+            <p>Toggle on "Developer mode" using the switch in the top-right corner of the extensions page.</p>
+          </li>
+          
+          <li class="step">
+            <h3>Load the Extension</h3>
+            <p>Click the "Load unpacked" button that appears after enabling Developer mode. Navigate to the folder where you extracted the extension files and select it.</p>
+          </li>
+          
+          <li class="step">
+            <h3>Verify Installation</h3>
+            <p>The AI Sales Assistant extension should now appear in your extensions list. You should also see the extension icon in your browser toolbar.</p>
+            <div class="note">If you don't see the icon, click the puzzle piece icon in your toolbar and pin the AI Sales Assistant extension.</div>
+          </li>
+        </ol>
+      </div>
+      
+      <div class="browser-content" id="edge-content">
+        <ol class="steps">
+          <li class="step">
+            <h3>Download the Extension</h3>
+            <p>If you haven't already, download the extension ZIP file from your AI Sales Assistant dashboard.</p>
+            <a href="/extension.zip" class="button" download>Download Extension</a>
+          </li>
+          
+          <li class="step">
+            <h3>Extract the ZIP File</h3>
+            <p>Right-click the downloaded ZIP file and select "Extract All..." to extract its contents to a folder.</p>
+            <div class="tip">Make note of where you extract the files. You'll need this location in the next step.</div>
+          </li>
+          
+          <li class="step">
+            <h3>Open Edge Extensions Page</h3>
+            <p>Open Microsoft Edge and navigate to <code>edge://extensions/</code> by typing it in the address bar.</p>
+          </li>
+          
+          <li class="step">
+            <h3>Enable Developer Mode</h3>
+            <p>Toggle on "Developer mode" using the switch in the bottom-left corner of the extensions page.</p>
+          </li>
+          
+          <li class="step">
+            <h3>Load the Extension</h3>
+            <p>Click the "Load unpacked" button that appears after enabling Developer mode. Navigate to the folder where you extracted the extension files and select it.</p>
+          </li>
+          
+          <li class="step">
+            <h3>Verify Installation</h3>
+            <p>The AI Sales Assistant extension should now appear in your extensions list. You should also see the extension icon in your browser toolbar.</p>
+            <div class="note">If you don't see the icon, click the ellipsis (...) in your toolbar, select Extensions, and pin the AI Sales Assistant extension.</div>
+          </li>
+        </ol>
+      </div>
+      
+      <div class="browser-content" id="firefox-content">
+        <ol class="steps">
+          <li class="step">
+            <h3>Download the Extension</h3>
+            <p>If you haven't already, download the extension ZIP file from your AI Sales Assistant dashboard.</p>
+            <a href="/extension.zip" class="button" download>Download Extension</a>
+          </li>
+          
+          <li class="step">
+            <h3>Extract the ZIP File</h3>
+            <p>Right-click the downloaded ZIP file and select "Extract All..." (Windows) or double-click the file (Mac) to extract its contents to a folder.</p>
+          </li>
+          
+          <li class="step">
+            <h3>Open Firefox Debugging Page</h3>
+            <p>Open Firefox and navigate to <code>about:debugging#/runtime/this-firefox</code> by typing it in the address bar.</p>
+          </li>
+          
+          <li class="step">
+            <h3>Load Temporary Add-on</h3>
+            <p>Click the "Load Temporary Add-on..." button. Navigate to the folder where you extracted the extension files and select the <code>manifest.json</code> file.</p>
+            <div class="warning">Note that in Firefox, the extension will only be installed temporarily and will be removed when you close Firefox.</div>
+          </li>
+          
+          <li class="step">
+            <h3>Verify Installation</h3>
+            <p>The AI Sales Assistant extension should now appear in your add-ons list. You should also see the extension icon in your browser toolbar.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+    
+    <section class="card">
+      <h2>Using the Extension</h2>
+      
+      <ol class="steps">
+        <li class="step">
+          <h3>Sign In</h3>
+          <p>Click the AI Sales Assistant icon in your browser toolbar. Sign in with your AI Sales Assistant account credentials.</p>
+        </li>
+        
+        <li class="step">
+          <h3>Join a Meeting</h3>
+          <p>Start or join a meeting in Google Meet, Zoom, or Microsoft Teams as you normally would.</p>
+        </li>
+        
+        <li class="step">
+          <h3>Start the Assistant</h3>
+          <p>Click the AI Sales Assistant icon in your browser toolbar and press the "Start Call" button. Grant microphone permissions if prompted.</p>
+          <div class="tip">You can also enable "Auto-start on meeting join" in the extension settings to automatically activate the assistant when you join a meeting.</div>
+        </li>
+        
+        <li class="step">
+          <h3>Use AI Suggestions</h3>
+          <p>During your call, the extension will display a floating panel with real-time AI suggestions based on the conversation. Click on a suggestion to copy it to your clipboard.</p>
+        </li>
+        
+        <li class="step">
+          <h3>View Live Transcription</h3>
+          <p>The extension will also display a floating panel with the live transcription of the conversation. This can help you keep track of important points discussed.</p>
+        </li>
+        
+        <li class="step">
+          <h3>End Recording</h3>
+          <p>When your call is finished, click the AI Sales Assistant icon and press the "End Call" button to stop recording and processing.</p>
+          <div class="note">All call data will be securely stored in your AI Sales Assistant account for later review.</div>
+        </li>
+      </ol>
+    </section>
+    
+    <section>
+      <h2>Troubleshooting</h2>
+      
+      <div class="card">
+        <h3>Extension Not Appearing</h3>
+        <p>If the extension doesn't appear in your browser after installation:</p>
+        <ul>
+          <li>Make sure you've enabled Developer mode in your browser's extensions page</li>
+          <li>Try reloading the extensions page</li>
+          <li>Restart your browser</li>
+          <li>Re-download and extract the extension files, then try loading it again</li>
+        </ul>
+      </div>
+      
+      <div class="card">
+        <h3>Microphone Access Issues</h3>
+        <p>If the extension can't access your microphone:</p>
+        <ul>
+          <li>Make sure you've granted microphone permissions to the extension</li>
+          <li>Check your browser's site settings to ensure microphone access is allowed</li>
+          <li>Make sure no other application is using your microphone exclusively</li>
+          <li>Try using a different microphone if available</li>
+        </ul>
+      </div>
+      
+      <div class="card">
+        <h3>No Suggestions Appearing</h3>
+        <p>If you're not seeing any AI suggestions during your call:</p>
+        <ul>
+          <li>Verify that you're signed in to your AI Sales Assistant account</li>
+          <li>Check that your account is active and has the necessary permissions</li>
+          <li>Ensure your microphone is working properly and picking up audio</li>
+          <li>Try speaking more clearly and at a normal volume</li>
+          <li>Check your internet connection, as suggestions require online processing</li>
+        </ul>
+      </div>
+    </section>
+    
+    <section class="card">
+      <h2>Privacy & Security</h2>
+      <p>The AI Sales Assistant extension is designed with your privacy and security in mind:</p>
+      
+      <ul>
+        <li>All audio processing is done through your secure AI Sales Assistant account</li>
+        <li>The extension only activates during meetings when you explicitly start recording</li>
+        <li>No audio is recorded without your permission</li>
+        <li>All data is encrypted in transit and at rest</li>
+        <li>The extension UI elements are never visible when sharing your screen</li>
+        <li>You can delete recorded call data at any time from your AI Sales Assistant dashboard</li>
+      </ul>
+      
+      <div class="warning">
+        <p><strong>Important:</strong> Always inform all participants that the call is being recorded and transcribed. This is not only a courtesy but may be legally required in some jurisdictions.</p>
+      </div>
+    </section>
+  </main>
+  
+  <footer>
+    <div class="container">
+      <p>&copy; 2023 AI Sales Assistant. All rights reserved.</p>
+      <p>For additional help, contact support at support@ai-sales-assistant.com or visit <a href="http://localhost:3002/help" style="color: white;">our help center</a></p>
+    </div>
+  </footer>
+  
+  <script>
+    // Browser tabs functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const tabs = document.querySelectorAll('.browser-tab');
+      const contents = document.querySelectorAll('.browser-content');
+      
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          // Remove active class from all tabs and contents
+          tabs.forEach(t => t.classList.remove('active'));
+          contents.forEach(c => c.classList.remove('active'));
+          
+          // Add active class to clicked tab
+          tab.classList.add('active');
+          
+          // Show corresponding content
+          const browser = tab.getAttribute('data-browser');
+          document.getElementById(`${browser}-content`).classList.add('active');
+        });
+      });
+    });
+  </script>
+</body>
+</html>

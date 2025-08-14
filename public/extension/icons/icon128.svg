@@ -1,0 +1,37 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="20" fill="#0066CC"/>
+  
+  <!-- Microphone Base -->
+  <path d="M64 28C51.2975 28 41 38.2975 41 51V64C41 76.7025 51.2975 87 64 87C76.7025 87 87 76.7025 87 64V51C87 38.2975 76.7025 28 64 28Z" fill="white"/>
+  <path d="M37 60V64C37 79.464 49.536 92 64 92C78.464 92 91 79.464 91 64V60" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <path d="M64 92V104" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <path d="M48 104H80" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  
+  <!-- Recording Indicator -->
+  <circle cx="96" cy="32" r="10" fill="#FF3B30"/>
+  
+  <!-- AI Wave Pattern -->
+  <path d="M38 51C38 51 44 42 52 42" stroke="#0052A3" stroke-width="3" stroke-linecap="round"/>
+  <path d="M38 58C38 58 48 44 64 44" stroke="#0052A3" stroke-width="3" stroke-linecap="round"/>
+  <path d="M38 65C38 65 52 46 76 46" stroke="#0052A3" stroke-width="3" stroke-linecap="round"/>
+  <path d="M38 72C38 72 56 48 90 48" stroke="#0052A3" stroke-width="3" stroke-linecap="round"/>
+  <path d="M44 79C44 79 60 50 90 50" stroke="#0052A3" stroke-width="3" stroke-linecap="round"/>
+  <path d="M52 86C52 86 64 52 90 52" stroke="#0052A3" stroke-width="3" stroke-linecap="round"/>
+  <path d="M62 90C62 90 70 54 90 54" stroke="#0052A3" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- AI Suggestion Bubbles -->
+  <circle cx="100" cy="70" r="8" fill="#34C759" opacity="0.8"/>
+  <circle cx="108" cy="86" r="6" fill="#FF9500" opacity="0.8"/>
+  <circle cx="94" cy="98" r="7" fill="#5856D6" opacity="0.8"/>
+  
+  <!-- Subtle Gradient Overlay -->
+  <rect width="128" height="128" rx="20" fill="url(#paint0_radial)" fill-opacity="0.2"/>
+  
+  <!-- Definitions -->
+  <defs>
+    <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(64 64) rotate(90) scale(64)">
+      <stop stop-color="white"/>
+      <stop offset="1" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>
