@@ -1,11 +1,12 @@
-import axios from 'axios';
-import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
-import config from '../config/config.js';
+import axios from "axios";
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import config from "../config/config.js";
+import zoomRTMSService from "./zoomRTMSService.js";
 
 class ZoomService {
   constructor() {
-    this.baseURL = 'https://api.zoom.us/v2';
+    this.baseURL = "https://api.zoom.us/v2";
     this.webhookEvents = new Map();
     this.accessToken = null;
     this.tokenExpiry = null;
@@ -15,33 +16,47 @@ class ZoomService {
   async getAccessToken() {
     try {
       // Check if we have a valid token
-      if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
+      if (
+        this.accessToken &&
+        this.tokenExpiry &&
+        Date.now() < this.tokenExpiry
+      ) {
         return this.accessToken;
       }
 
-      console.log('Getting OAuth access token for server-to-server app...');
-      
+      console.log("Getting OAuth access token for server-to-server app...");
+
       // For server-to-server OAuth apps with account-level authorization
-      const authString = Buffer.from(`${config.ZOOM_CLIENT_ID}:${config.ZOOM_CLIENT_SECRET}`).toString('base64');
-      
-      const response = await axios.post('https://zoom.us/oauth/token', 
-        'grant_type=account_credentials&account_id=ieiRZ0WkSgGgyG3DH60jbQ',
+      const authString = Buffer.from(
+        `${config.ZOOM_CLIENT_ID}:${config.ZOOM_CLIENT_SECRET}`
+      ).toString("base64");
+
+      const response = await axios.post(
+        "https://zoom.us/oauth/token",
+        "grant_type=account_credentials&account_id=ieiRZ0WkSgGgyG3DH60jbQ",
         {
           headers: {
-            'Authorization': `Basic ${authString}`,
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
+            Authorization: `Basic ${authString}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
         }
       );
 
       this.accessToken = response.data.access_token;
-      this.tokenExpiry = Date.now() + (response.data.expires_in * 1000);
-      
-      console.log('✅ OAuth access token obtained successfully');
+      this.tokenExpiry = Date.now() + response.data.expires_in * 1000;
+
+      console.log("✅ OAuth access token obtained successfully");
       return this.accessToken;
     } catch (error) {
-      console.error('Failed to get OAuth token:', error.response?.data || error.message);
-      throw new Error(`Failed to authenticate with Zoom: ${error.response?.data?.message || error.message}`);
+      console.error(
+        "Failed to get OAuth token:",
+        error.response?.data || error.message
+      );
+      throw new Error(
+        `Failed to authenticate with Zoom: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     }
   }
 
@@ -50,62 +65,69 @@ class ZoomService {
     try {
       const payload = {
         iss: config.ZOOM_CLIENT_ID || config.ZOOM_SDK_KEY,
-        exp: Math.floor(Date.now() / 1000) + 3600 // 1 hour expiration
+        exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour expiration
       };
-      
+
       const secret = config.ZOOM_CLIENT_SECRET || config.ZOOM_SDK_SECRET;
-      
+
       if (!secret) {
-        throw new Error('Zoom secret not configured');
+        throw new Error("Zoom secret not configured");
       }
-      
-      return jwt.sign(payload, secret, { algorithm: 'HS256' });
+
+      return jwt.sign(payload, secret, { algorithm: "HS256" });
     } catch (error) {
-      console.error('Failed to generate Zoom JWT:', error);
-      throw new Error('Failed to generate Zoom authentication token');
+      console.error("Failed to generate Zoom JWT:", error);
+      throw new Error("Failed to generate Zoom authentication token");
     }
   }
 
   // Generate Zoom SDK signature for client-side SDK
   generateSDKSignature(meetingNumber, role) {
     try {
-      // For client-side SDK, we need to use the same credentials as the API
-      const sdkKey = config.ZOOM_CLIENT_ID || config.ZOOM_SDK_KEY;
-      const sdkSecret = config.ZOOM_CLIENT_SECRET || config.ZOOM_SDK_SECRET;
-      
+      // Always use ZOOM_SDK_KEY and ZOOM_SDK_SECRET for SDK signature
+      const sdkKey = config.ZOOM_SDK_KEY;
+      const sdkSecret = config.ZOOM_SDK_SECRET;
+
       if (!sdkKey || !sdkSecret) {
-        throw new Error('Zoom SDK credentials not configured');
+        throw new Error("Zoom SDK credentials not configured");
       }
-      
+
       const timestamp = new Date().getTime() - 30000;
-      const msg = Buffer.from(sdkKey + meetingNumber + timestamp + role).toString('base64');
-      const hash = crypto.createHmac('sha256', sdkSecret).update(msg).digest('base64');
-      
-      const signature = Buffer.from(`${sdkKey}.${meetingNumber}.${timestamp}.${role}.${hash}`).toString('base64');
-      
-      console.log('Generated SDK signature for meeting:', meetingNumber);
+      const msg = Buffer.from(
+        sdkKey + meetingNumber + timestamp + role
+      ).toString("base64");
+      const hash = crypto
+        .createHmac("sha256", sdkSecret)
+        .update(msg)
+        .digest("base64");
+
+      const signature = Buffer.from(
+        `${sdkKey}.${meetingNumber}.${timestamp}.${role}.${hash}`
+      ).toString("base64");
+
+      console.log("Generated SDK signature for meeting:", meetingNumber);
       return signature;
     } catch (error) {
-      console.error('Failed to generate SDK signature:', error);
-      throw new Error('Failed to generate SDK signature');
+      console.error("Failed to generate SDK signature:", error);
+      throw new Error("Failed to generate SDK signature");
     }
   }
 
   // Create Zoom meeting
   async createMeeting(userId, meetingData) {
     try {
-      console.log('Creating Zoom meeting with userId:', userId);
-      console.log('Meeting data:', meetingData);
-      
+      console.log("Creating Zoom meeting with userId:", userId);
+      console.log("Meeting data:", meetingData);
+
       const token = await this.getAccessToken();
-      console.log('Obtained authentication token successfully');
-      
+      console.log("Obtained authentication token successfully");
+
       const meetingPayload = {
-        topic: meetingData.topic || 'AI-Assisted Sales Call',
+        topic: meetingData.topic || "AI-Assisted Sales Call",
         type: 2, // Scheduled meeting
         start_time: meetingData.startTime,
         duration: meetingData.duration || 60,
-        timezone: meetingData.timezone || 'UTC',
+        timezone: meetingData.timezone || "UTC",
         password: meetingData.password || this.generateMeetingPassword(),
         settings: {
           host_video: true,
@@ -113,31 +135,31 @@ class ZoomService {
           join_before_host: true,
           mute_upon_entry: true,
           waiting_room: false,
-          audio: 'both',
-          auto_recording: 'cloud',
+          audio: "both",
+          auto_recording: "cloud",
           recording_authentication: false,
           meeting_authentication: false,
           approval_type: 0,
           registration_type: 1,
           enforce_login: false,
-          alternative_hosts: meetingData.alternativeHosts || '',
+          alternative_hosts: meetingData.alternativeHosts || "",
           close_registration: false,
           show_share_button: true,
           allow_multiple_devices: true,
-          encryption_type: 'enhanced_encryption'
+          encryption_type: "enhanced_encryption",
         },
-        recurrence: meetingData.recurrence || null
+        recurrence: meetingData.recurrence || null,
       };
-      
-      console.log('Making request to Zoom API...');
+
+      console.log("Making request to Zoom API...");
       const response = await axios.post(
         `${this.baseURL}/users/${userId}/meetings`,
         meetingPayload,
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         }
       );
 
@@ -153,11 +175,18 @@ class ZoomService {
         timezone: response.data.timezone,
         uuid: response.data.uuid,
         hostId: response.data.host_id,
-        hostEmail: response.data.host_email
+        hostEmail: response.data.host_email,
       };
     } catch (error) {
-      console.error('Failed to create Zoom meeting:', error.response?.data || error.message);
-      throw new Error(`Failed to create Zoom meeting: ${error.response?.data?.message || error.message}`);
+      console.error(
+        "Failed to create Zoom meeting:",
+        error.response?.data || error.message
+      );
+      throw new Error(
+        `Failed to create Zoom meeting: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     }
   }
 
@@ -165,13 +194,13 @@ class ZoomService {
   async getMeeting(meetingId) {
     try {
       const token = await this.getAccessToken();
-      
+
       const response = await axios.get(
         `${this.baseURL}/meetings/${meetingId}`,
         {
           headers: {
-            'Authorization': `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
@@ -187,29 +216,36 @@ class ZoomService {
         password: response.data.password,
         hostId: response.data.host_id,
         hostEmail: response.data.host_email,
-        participants: response.data.participants || []
+        participants: response.data.participants || [],
       };
     } catch (error) {
-      console.error('Failed to get meeting details:', error.response?.data || error.message);
-      throw new Error(`Failed to get meeting details: ${error.response?.data?.message || error.message}`);
+      console.error(
+        "Failed to get meeting details:",
+        error.response?.data || error.message
+      );
+      throw new Error(
+        `Failed to get meeting details: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     }
   }
 
   // List user meetings
-  async listMeetings(userId, type = 'scheduled', pageSize = 30) {
+  async listMeetings(userId, type = "scheduled", pageSize = 30) {
     try {
       const token = await this.getAccessToken();
-      
+
       const response = await axios.get(
         `${this.baseURL}/users/${userId}/meetings`,
         {
           headers: {
-            'Authorization': `Bearer ${token}`
+            Authorization: `Bearer ${token}`,
           },
           params: {
             type,
-            page_size: pageSize
-          }
+            page_size: pageSize,
+          },
         }
       );
 
@@ -218,11 +254,18 @@ class ZoomService {
         pageCount: response.data.page_count,
         pageNumber: response.data.page_number,
         pageSize: response.data.page_size,
-        totalRecords: response.data.total_records
+        totalRecords: response.data.total_records,
       };
     } catch (error) {
-      console.error('Failed to list meetings:', error.response?.data || error.message);
-      throw new Error(`Failed to list meetings: ${error.response?.data?.message || error.message}`);
+      console.error(
+        "Failed to list meetings:",
+        error.response?.data || error.message
+      );
+      throw new Error(
+        `Failed to list meetings: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     }
   }
 
@@ -230,22 +273,29 @@ class ZoomService {
   async updateMeeting(meetingId, updateData) {
     try {
       const token = await this.getAccessToken();
-      
+
       const response = await axios.patch(
         `${this.baseURL}/meetings/${meetingId}`,
         updateData,
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         }
       );
 
       return response.data;
     } catch (error) {
-      console.error('Failed to update meeting:', error.response?.data || error.message);
-      throw new Error(`Failed to update meeting: ${error.response?.data?.message || error.message}`);
+      console.error(
+        "Failed to update meeting:",
+        error.response?.data || error.message
+      );
+      throw new Error(
+        `Failed to update meeting: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     }
   }
 
@@ -253,14 +303,14 @@ class ZoomService {
   async disableEmailNotifications(meetingId) {
     try {
       const token = await this.getAccessToken();
-      
+
       // Only use valid Zoom API settings
       const updateData = {
         settings: {
           host_email_notification: false,
           host_email_reminder: false,
-          host_email_reminder_time: 0
-        }
+          host_email_reminder_time: 0,
+        },
       };
 
       const response = await axios.patch(
@@ -268,17 +318,24 @@ class ZoomService {
         updateData,
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         }
       );
 
       console.log(`✅ Email notifications disabled for meeting ${meetingId}`);
       return response.data;
     } catch (error) {
-      console.error('Failed to disable email notifications:', error.response?.data || error.message);
-      throw new Error(`Failed to disable email notifications: ${error.response?.data?.message || error.message}`);
+      console.error(
+        "Failed to disable email notifications:",
+        error.response?.data || error.message
+      );
+      throw new Error(
+        `Failed to disable email notifications: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     }
   }
 
@@ -286,20 +343,24 @@ class ZoomService {
   async deleteMeeting(meetingId) {
     try {
       const token = await this.getAccessToken();
-      
-      await axios.delete(
-        `${this.baseURL}/meetings/${meetingId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
+
+      await axios.delete(`${this.baseURL}/meetings/${meetingId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       return { success: true };
     } catch (error) {
-      console.error('Failed to delete meeting:', error.response?.data || error.message);
-      throw new Error(`Failed to delete meeting: ${error.response?.data?.message || error.message}`);
+      console.error(
+        "Failed to delete meeting:",
+        error.response?.data || error.message
+      );
+      throw new Error(
+        `Failed to delete meeting: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     }
   }
 
@@ -307,13 +368,13 @@ class ZoomService {
   async getMeetingRecordings(meetingId) {
     try {
       const token = await this.getAccessToken();
-      
+
       const response = await axios.get(
         `${this.baseURL}/meetings/${meetingId}/recordings`,
         {
           headers: {
-            'Authorization': `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
@@ -327,11 +388,18 @@ class ZoomService {
         duration: response.data.duration,
         totalSize: response.data.total_size,
         recordingCount: response.data.recording_count,
-        recordingFiles: response.data.recording_files || []
+        recordingFiles: response.data.recording_files || [],
       };
     } catch (error) {
-      console.error('Failed to get meeting recordings:', error.response?.data || error.message);
-      throw new Error(`Failed to get meeting recordings: ${error.response?.data?.message || error.message}`);
+      console.error(
+        "Failed to get meeting recordings:",
+        error.response?.data || error.message
+      );
+      throw new Error(
+        `Failed to get meeting recordings: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     }
   }
 
@@ -339,13 +407,13 @@ class ZoomService {
   async getMeetingParticipants(meetingId) {
     try {
       const token = await this.getAccessToken();
-      
+
       const response = await axios.get(
         `${this.baseURL}/meetings/${meetingId}/participants`,
         {
           headers: {
-            'Authorization': `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
@@ -353,11 +421,18 @@ class ZoomService {
         participants: response.data.participants || [],
         pageCount: response.data.page_count,
         pageSize: response.data.page_size,
-        totalRecords: response.data.total_records
+        totalRecords: response.data.total_records,
       };
     } catch (error) {
-      console.error('Failed to get meeting participants:', error.response?.data || error.message);
-      throw new Error(`Failed to get meeting participants: ${error.response?.data?.message || error.message}`);
+      console.error(
+        "Failed to get meeting participants:",
+        error.response?.data || error.message
+      );
+      throw new Error(
+        `Failed to get meeting participants: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     }
   }
 
@@ -371,13 +446,13 @@ class ZoomService {
     try {
       const message = `v0:${timestamp}:${payload}`;
       const expectedSignature = `v0=${crypto
-        .createHmac('sha256', config.ZOOM_WEBHOOK_SECRET)
+        .createHmac("sha256", config.ZOOM_WEBHOOK_SECRET)
         .update(message)
-        .digest('hex')}`;
-      
+        .digest("hex")}`;
+
       return signature === expectedSignature;
     } catch (error) {
-      console.error('Error verifying webhook signature:', error);
+      console.error("Error verifying webhook signature:", error);
       return false;
     }
   }
@@ -385,7 +460,7 @@ class ZoomService {
   // Handle webhook events
   handleWebhook(event, payload) {
     const eventHandlers = this.webhookEvents.get(event) || [];
-    eventHandlers.forEach(handler => {
+    eventHandlers.forEach((handler) => {
       try {
         handler(payload);
       } catch (error) {
@@ -403,52 +478,116 @@ class ZoomService {
 
   // Start AI monitoring for a meeting
   async startAIMonitoring(meetingId, callId, io) {
+    console.log(`🎯 Starting AI monitoring for Zoom meeting: ${meetingId}`);
+
+    // Note: RTMS transcript handling is done globally in index.js to avoid duplicates
+    // Do not add transcript handlers here to prevent multiple emissions
+
     // Register webhook handlers for this meeting
-    this.onWebhookEvent('meeting.started', (payload) => {
+    this.onWebhookEvent("meeting.started", (payload) => {
       if (payload.object.id === meetingId) {
-        io.emit('meetingStarted', { callId, meetingId, platform: 'zoom' });
+        io.emit("meetingStarted", { callId, meetingId, platform: "zoom" });
       }
     });
 
-    this.onWebhookEvent('meeting.ended', (payload) => {
+    this.onWebhookEvent("meeting.ended", (payload) => {
       if (payload.object.id === meetingId) {
-        io.emit('meetingEnded', { callId, meetingId, platform: 'zoom' });
+        io.emit("meetingEnded", { callId, meetingId, platform: "zoom" });
       }
     });
 
-    this.onWebhookEvent('meeting.participant_joined', (payload) => {
+    this.onWebhookEvent("meeting.participant_joined", (payload) => {
       if (payload.object.id === meetingId) {
-        io.emit('participantJoined', { 
-          callId, 
-          meetingId, 
-          platform: 'zoom',
-          participant: payload.object.participant 
+        io.emit("participantJoined", {
+          callId,
+          meetingId,
+          platform: "zoom",
+          participant: payload.object.participant,
         });
       }
     });
 
-    this.onWebhookEvent('meeting.participant_left', (payload) => {
+    this.onWebhookEvent("meeting.participant_left", (payload) => {
       if (payload.object.id === meetingId) {
-        io.emit('participantLeft', { 
-          callId, 
-          meetingId, 
-          platform: 'zoom',
-          participant: payload.object.participant 
+        io.emit("participantLeft", {
+          callId,
+          meetingId,
+          platform: "zoom",
+          participant: payload.object.participant,
         });
       }
     });
 
-    this.onWebhookEvent('recording.completed', (payload) => {
+    this.onWebhookEvent("recording.completed", (payload) => {
       if (payload.object.id === meetingId) {
-        io.emit('recordingCompleted', { 
-          callId, 
-          meetingId, 
-          platform: 'zoom',
-          recording: payload.object 
+        io.emit("recordingCompleted", {
+          callId,
+          meetingId,
+          platform: "zoom",
+          recording: payload.object,
         });
       }
     });
   }
+
+  // Generate Zoom Access Key (ZAK) for joining meetings as authenticated user (participant)
+  async generateZAK(meetingNumber) {
+    try {
+      const token = await this.getAccessToken();
+
+      // Get user information first
+      const userResponse = await axios.get(`${this.baseURL}/users/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const user = userResponse.data;
+      console.log("User info for ZAK (participant):", user);
+
+      // Generate ZAK token for PARTICIPANT (not host)
+      const payload = {
+        iss: "web",
+        clt: 1, // Client type: 1 for participant, 0 for host
+        mnum: meetingNumber,
+        aud: "clientsm",
+        uid: user.id,
+        zid: user.account_id,
+        sk: Math.floor(Math.random() * 1000000000000000000).toString(), // Random session key
+        sty: 100, // Session type: 100 for web client
+        wcd: "us05", // Web client domain
+        exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour expiration
+        iat: Math.floor(Date.now() / 1000),
+        aid: user.account_id,
+        cid: "", // Client ID (empty for participant)
+      };
+
+      const zakToken = jwt.sign(payload, config.ZOOM_CLIENT_SECRET, {
+        algorithm: "HS256",
+      });
+
+      console.log("Generated PARTICIPANT ZAK token for user:", user.email);
+      return {
+        zak: zakToken,
+        user: {
+          id: user.id,
+          email: user.email,
+          first_name: user.first_name,
+          last_name: user.last_name,
+        },
+      };
+    } catch (error) {
+      console.error("Failed to generate ZAK token:", error);
+      throw new Error("Failed to generate ZAK token");
+    }
+  } // async saveTranscriptToDatabase(callId, transcriptData) {
+  //   try {
+  //     // Database saving is currently disabled - only broadcasting to frontend
+  //     console.log("� RTMS transcript processed (database saving disabled)");
+  //   } catch (error) {
+  //     console.error("❌ Failed to process RTMS transcript:", error);
+  //   }
+  // }
 }
 
 export default new ZoomService();

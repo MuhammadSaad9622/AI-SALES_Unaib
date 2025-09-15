@@ -1,26 +1,27 @@
-import axios from 'axios';
+import axios from "axios";
 
 // Use environment variable or fallback to default
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:3002/api";
 
 // Create axios instance with default config
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
 // Add auth token to requests
 apiClient.interceptors.request.use(async (config) => {
   // Check localStorage for token
-  const token = localStorage.getItem('authToken');
-  
+  const token = localStorage.getItem("authToken");
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  
+
   return config;
 });
 
@@ -30,14 +31,14 @@ let isRefreshing = false;
 let failedQueue = [];
 
 const processQueue = (error, token = null) => {
-  failedQueue.forEach(prom => {
+  failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
       prom.resolve(token);
     }
   });
-  
+
   failedQueue = [];
 };
 
@@ -46,7 +47,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    
+
     // If the error is 401 and we haven't already tried to refresh the token
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
@@ -56,16 +57,16 @@ apiClient.interceptors.response.use(
         })
           .then(() => {
             // Get token from localStorage
-            const token = localStorage.getItem('authToken');
-            
+            const token = localStorage.getItem("authToken");
+
             if (!token) {
-              throw new Error('No authentication token found');
+              throw new Error("No authentication token found");
             }
-            
-            originalRequest.headers['Authorization'] = `Bearer ${token}`;
+
+            originalRequest.headers["Authorization"] = `Bearer ${token}`;
             return apiClient(originalRequest);
           })
-          .catch(err => {
+          .catch((err) => {
             return Promise.reject(err);
           });
       }
@@ -74,40 +75,41 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       // Check if we're on the login page or trying to refresh the token
-      const isAuthEndpoint = originalRequest.url?.includes('/auth/login') || 
-                            originalRequest.url?.includes('/auth/register');
-      
+      const isAuthEndpoint =
+        originalRequest.url?.includes("/auth/login") ||
+        originalRequest.url?.includes("/auth/register");
+
       if (isAuthEndpoint) {
         // Don't try to refresh for auth endpoints
         isRefreshing = false;
         return Promise.reject(error);
       }
-      
+
       try {
         // For now, just clear the token and reject
         // In a real app, you would implement token refresh here
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
-        
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("user");
+
         isRefreshing = false;
         processQueue(error, null);
-        
+
         // Redirect to login page
-        if (window.location.pathname !== '/signin') {
-          window.location.href = '/signin';
+        if (window.location.pathname !== "/signin") {
+          window.location.href = "/signin";
         }
-        
+
         return Promise.reject(error);
       } catch (refreshError) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
-        
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("user");
+
         isRefreshing = false;
         processQueue(refreshError, null);
         return Promise.reject(refreshError);
       }
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -115,48 +117,60 @@ apiClient.interceptors.response.use(
 export class APIService {
   // Authentication
   static async login(email: string, password: string) {
-    const response = await apiClient.post('/auth/login', { email, password });
+    const response = await apiClient.post("/auth/login", { email, password });
     return response.data;
   }
-  
+
   static async register(name: string, email: string, password: string) {
-    const response = await apiClient.post('/auth/register', { name, email, password });
+    const response = await apiClient.post("/auth/register", {
+      name,
+      email,
+      password,
+    });
     return response.data;
   }
 
   static async getProfile() {
-    const response = await apiClient.get('/auth/me');
+    const response = await apiClient.get("/auth/me");
     return response.data;
   }
 
   static async updateProfile(updates: any) {
-    const response = await apiClient.patch('/auth/me', updates);
+    const response = await apiClient.patch("/auth/me", updates);
     return response.data;
   }
 
   static async changePassword(currentPassword: string, newPassword: string) {
-    const response = await apiClient.patch('/auth/change-password', {
+    const response = await apiClient.patch("/auth/change-password", {
       currentPassword,
-      newPassword
+      newPassword,
     });
     return response.data;
   }
-  
-
 
   // Calls
   static async getCalls(params?: any) {
-    const response = await apiClient.get('/calls', { params });
+    const response = await apiClient.get("/calls", { params });
     return response.data;
   }
 
   static async createCall(callData: any) {
-    const response = await apiClient.post('/calls', callData);
+    const response = await apiClient.post("/calls", callData);
     return response.data;
   }
 
   static async getCall(id: string) {
     const response = await apiClient.get(`/calls/${id}`);
+    return response.data;
+  }
+
+  static async getCallLog(id: string) {
+    const response = await apiClient.get(`/calls/${id}/log`);
+    return response.data;
+  }
+
+  static async generateCallSummary(id: string) {
+    const response = await apiClient.post(`/calls/${id}/summary`);
     return response.data;
   }
 
@@ -182,7 +196,9 @@ export class APIService {
 
   // Zoom Meeting Services
   static async createZoomMeeting(meetingData: any) {
-    const response = await apiClient.post('/meetings/zoom/create', { meetingData });
+    const response = await apiClient.post("/meetings/zoom/create", {
+      meetingData,
+    });
     return response.data;
   }
 
@@ -192,55 +208,73 @@ export class APIService {
   }
 
   static async listZoomMeetings(type?: string) {
-    const response = await apiClient.get('/meetings/zoom/user/list', {
-      params: { type }
+    const response = await apiClient.get("/meetings/zoom/user/list", {
+      params: { type },
     });
     return response.data;
   }
 
-  static async generateZoomSDKSignature(meetingNumber: string, role: number = 0) {
-    const response = await apiClient.post('/meetings/zoom/sdk-signature', {
+  static async generateZoomSDKSignature(
+    meetingNumber: string,
+    role: number = 0
+  ) {
+    const response = await apiClient.post("/meetings/zoom/sdk-signature", {
       meetingNumber,
-      role
+      role,
     });
     return response.data;
   }
 
   static async sendMeetingInvite(inviteData: any) {
-    const response = await apiClient.post('/meetings/zoom/send-invite', inviteData);
+    const response = await apiClient.post(
+      "/meetings/zoom/send-invite",
+      inviteData
+    );
     return response.data;
   }
 
   static async disableMeetingNotifications(meetingId: string) {
-    const response = await apiClient.patch(`/meetings/zoom/${meetingId}/disable-notifications`);
+    const response = await apiClient.patch(
+      `/meetings/zoom/${meetingId}/disable-notifications`
+    );
+    return response.data;
+  }
+
+  // Generate Zoom ZAK token for joining meetings as authenticated user
+  static async generateZoomZAK(meetingNumber: string) {
+    const response = await apiClient.post("/meetings/zoom/generate-zak", {
+      meetingNumber,
+    });
     return response.data;
   }
 
   // Google Meet Services
   static async getGoogleAuthUrl() {
-    const response = await apiClient.get('/meetings/google/auth-url');
+    const response = await apiClient.get("/meetings/google/auth-url");
     return response.data;
   }
 
   static async exchangeGoogleCode(code: string) {
-    const response = await apiClient.post('/meetings/google/exchange-code', { code });
+    const response = await apiClient.post("/meetings/google/exchange-code", {
+      code,
+    });
     return response.data;
   }
 
   static async createGoogleMeet(userTokens: any, meetingData: any) {
-    const response = await apiClient.post('/meetings/google/create', {
+    const response = await apiClient.post("/meetings/google/create", {
       userTokens,
-      meetingData
+      meetingData,
     });
     return response.data;
   }
 
   static async listGoogleMeets(userTokens: any, maxResults?: number) {
-    const response = await apiClient.get('/meetings/google/user/list', {
-      params: { 
+    const response = await apiClient.get("/meetings/google/user/list", {
+      params: {
         userTokens: JSON.stringify(userTokens),
-        maxResults
-      }
+        maxResults,
+      },
     });
     return response.data;
   }
@@ -248,19 +282,22 @@ export class APIService {
   // Documents
   static async getDocuments(params?: any) {
     try {
-      const response = await apiClient.get('/documents', { params });
+      const response = await apiClient.get("/documents", { params });
       return response.data;
     } catch (error) {
       // Extract detailed error information if available
       const errorDetails = error.response?.data || {};
-      const enhancedError = new Error(errorDetails.message || 'Failed to fetch documents');
-      
+      const enhancedError = new Error(
+        errorDetails.message || "Failed to fetch documents"
+      );
+
       // Add additional properties to the error
-      enhancedError.code = errorDetails.code || 'UNKNOWN_ERROR';
-      enhancedError.details = errorDetails.details || 'An unexpected error occurred';
+      enhancedError.code = errorDetails.code || "UNKNOWN_ERROR";
+      enhancedError.details =
+        errorDetails.details || "An unexpected error occurred";
       enhancedError.status = error.response?.status;
       enhancedError.originalError = error;
-      
+
       throw enhancedError;
     }
   }
@@ -272,56 +309,69 @@ export class APIService {
     } catch (error) {
       // Extract detailed error information if available
       const errorDetails = error.response?.data || {};
-      const enhancedError = new Error(errorDetails.message || 'Failed to fetch document');
-      
+      const enhancedError = new Error(
+        errorDetails.message || "Failed to fetch document"
+      );
+
       // Add additional properties to the error
-      enhancedError.code = errorDetails.code || 'UNKNOWN_ERROR';
-      enhancedError.details = errorDetails.details || 'An unexpected error occurred';
+      enhancedError.code = errorDetails.code || "UNKNOWN_ERROR";
+      enhancedError.details =
+        errorDetails.details || "An unexpected error occurred";
       enhancedError.status = error.response?.status;
       enhancedError.originalError = error;
-      
+
       throw enhancedError;
     }
   }
 
   static async uploadDocument(formData: FormData) {
     try {
-      const response = await apiClient.post('/documents/upload', formData, {
+      const response = await apiClient.post("/documents/upload", formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+          "Content-Type": "multipart/form-data",
+        },
       });
       return response.data;
     } catch (error) {
       // Extract detailed error information if available
       const errorDetails = error.response?.data || {};
-      const enhancedError = new Error(errorDetails.message || 'Failed to upload document');
-      
+      const enhancedError = new Error(
+        errorDetails.message || "Failed to upload document"
+      );
+
       // Add additional properties to the error
-      enhancedError.code = errorDetails.code || 'UNKNOWN_ERROR';
-      enhancedError.details = errorDetails.details || 'An unexpected error occurred';
+      enhancedError.code = errorDetails.code || "UNKNOWN_ERROR";
+      enhancedError.details =
+        errorDetails.details || "An unexpected error occurred";
       enhancedError.status = error.response?.status;
       enhancedError.originalError = error;
-      
+
       throw enhancedError;
     }
   }
 
-  static async createUrlDocument(documentData: { name: string, url: string, tags?: string[] }) {
+  static async createUrlDocument(documentData: {
+    name: string;
+    url: string;
+    tags?: string[];
+  }) {
     try {
-      const response = await apiClient.post('/documents/url', documentData);
+      const response = await apiClient.post("/documents/url", documentData);
       return response.data;
     } catch (error) {
       // Extract detailed error information if available
       const errorDetails = error.response?.data || {};
-      const enhancedError = new Error(errorDetails.message || 'Failed to create URL document');
-      
+      const enhancedError = new Error(
+        errorDetails.message || "Failed to create URL document"
+      );
+
       // Add additional properties to the error
-      enhancedError.code = errorDetails.code || 'UNKNOWN_ERROR';
-      enhancedError.details = errorDetails.details || 'An unexpected error occurred';
+      enhancedError.code = errorDetails.code || "UNKNOWN_ERROR";
+      enhancedError.details =
+        errorDetails.details || "An unexpected error occurred";
       enhancedError.status = error.response?.status;
       enhancedError.originalError = error;
-      
+
       throw enhancedError;
     }
   }
@@ -333,14 +383,17 @@ export class APIService {
     } catch (error) {
       // Extract detailed error information if available
       const errorDetails = error.response?.data || {};
-      const enhancedError = new Error(errorDetails.message || 'Failed to update document');
-      
+      const enhancedError = new Error(
+        errorDetails.message || "Failed to update document"
+      );
+
       // Add additional properties to the error
-      enhancedError.code = errorDetails.code || 'UNKNOWN_ERROR';
-      enhancedError.details = errorDetails.details || 'An unexpected error occurred';
+      enhancedError.code = errorDetails.code || "UNKNOWN_ERROR";
+      enhancedError.details =
+        errorDetails.details || "An unexpected error occurred";
       enhancedError.status = error.response?.status;
       enhancedError.originalError = error;
-      
+
       throw enhancedError;
     }
   }
@@ -352,14 +405,17 @@ export class APIService {
     } catch (error) {
       // Extract detailed error information if available
       const errorDetails = error.response?.data || {};
-      const enhancedError = new Error(errorDetails.message || 'Failed to delete document');
-      
+      const enhancedError = new Error(
+        errorDetails.message || "Failed to delete document"
+      );
+
       // Add additional properties to the error
-      enhancedError.code = errorDetails.code || 'UNKNOWN_ERROR';
-      enhancedError.details = errorDetails.details || 'An unexpected error occurred';
+      enhancedError.code = errorDetails.code || "UNKNOWN_ERROR";
+      enhancedError.details =
+        errorDetails.details || "An unexpected error occurred";
       enhancedError.status = error.response?.status;
       enhancedError.originalError = error;
-      
+
       throw enhancedError;
     }
   }
@@ -370,28 +426,40 @@ export class APIService {
       return response.data;
     } catch (error) {
       const errorDetails = error.response?.data || {};
-      const enhancedError = new Error(errorDetails.message || 'Failed to get AI suggestion');
-      enhancedError.code = errorDetails.code || 'UNKNOWN_ERROR';
-      enhancedError.details = errorDetails.details || 'An unexpected error occurred';
+      const enhancedError = new Error(
+        errorDetails.message || "Failed to get AI suggestion"
+      );
+      enhancedError.code = errorDetails.code || "UNKNOWN_ERROR";
+      enhancedError.details =
+        errorDetails.details || "An unexpected error occurred";
       enhancedError.status = error.response?.status;
       enhancedError.originalError = error;
       throw enhancedError;
     }
   }
-  
+
   static getDocumentDownloadUrl(id: string) {
     return `${API_BASE_URL}/documents/${id}/download`;
   }
 
-  static async processTextForAISuggestion(text: string, documentType: string = 'text') {
+  static async processTextForAISuggestion(
+    text: string,
+    documentType: string = "text"
+  ) {
     try {
-      const response = await apiClient.post('/documents/process-text', { text, documentType });
+      const response = await apiClient.post("/documents/process-text", {
+        text,
+        documentType,
+      });
       return response.data;
     } catch (error) {
       const errorDetails = error.response?.data || {};
-      const enhancedError = new Error(errorDetails.message || 'Failed to process text for AI suggestion');
-      enhancedError.code = errorDetails.code || 'UNKNOWN_ERROR';
-      enhancedError.details = errorDetails.details || 'An unexpected error occurred';
+      const enhancedError = new Error(
+        errorDetails.message || "Failed to process text for AI suggestion"
+      );
+      enhancedError.code = errorDetails.code || "UNKNOWN_ERROR";
+      enhancedError.details =
+        errorDetails.details || "An unexpected error occurred";
       enhancedError.status = error.response?.status;
       enhancedError.originalError = error;
       throw enhancedError;
@@ -399,23 +467,23 @@ export class APIService {
   }
 
   // Analytics
-  static async getDashboardAnalytics(timeRange = '30d') {
-    const response = await apiClient.get('/analytics', {
-      params: { timeRange }
+  static async getDashboardAnalytics(timeRange = "30d") {
+    const response = await apiClient.get("/analytics", {
+      params: { timeRange },
     });
     return response.data;
   }
 
-  static async getPerformanceAnalytics(timeRange = '30d', groupBy = 'day') {
-    const response = await apiClient.get('/analytics/performance', {
-      params: { timeRange, groupBy }
+  static async getPerformanceAnalytics(timeRange = "30d", groupBy = "day") {
+    const response = await apiClient.get("/analytics/performance", {
+      params: { timeRange, groupBy },
     });
     return response.data;
   }
 
   // Health Check
   static async getHealth() {
-    const response = await apiClient.get('/health');
+    const response = await apiClient.get("/health");
     return response.data;
   }
 }
