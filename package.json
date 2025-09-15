@@ -15,6 +15,7 @@
   "dependencies": {
     "@deepgram/sdk": "^2.4.0",
     "@supabase/supabase-js": "^2.39.0",
+    "@zoom/rtms": "^0.0.2",
     "archiver": "^6.0.2",
     "assemblyai": "^4.0.0",
     "axios": "^1.6.2",
