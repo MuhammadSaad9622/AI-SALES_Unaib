@@ -48,7 +48,7 @@ export const useWebSocket = (callId: string, userId?: string) => {
     console.log("🔌 Creating Socket.IO connection...");
     console.log(
       "🌐 Server URL:",
-      import.meta.env.VITE_API_URL || "http://localhost:3002"
+      import.meta.env.VITE_API_URL || "https://ai-sales-unaib.onrender.com/"
     );
 
     const authToken =
@@ -56,7 +56,7 @@ export const useWebSocket = (callId: string, userId?: string) => {
     console.log("🔑 Auth token present:", !!authToken);
 
     const newSocket = io(
-      import.meta.env.VITE_API_URL || "http://localhost:3002",
+      import.meta.env.VITE_API_URL || "https://ai-sales-unaib.onrender.com/",
       {
         transports: ["websocket", "polling"],
         auth: {

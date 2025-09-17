@@ -4,7 +4,7 @@
 const CONFIG = {
   // API endpoints - Using your existing server
   API: {
-    BASE_URL: 'http://localhost:3002',  // Your server runs on port 3002
+    BASE_URL: 'https://ai-sales-unaib.onrender.com/',  // Your server runs on port 3002
     ENDPOINTS: {
       // Authentication endpoints
       AUTH: '/api/auth',
@@ -30,7 +30,7 @@ const CONFIG = {
   
   // Dashboard URLs - Using your existing server
   DASHBOARD: {
-    BASE_URL: 'http://localhost:3002',
+    BASE_URL: 'https://ai-sales-unaib.onrender.com/',
     ROUTES: {
       HOME: '/',
       SESSIONS: '/sessions',

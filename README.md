@@ -73,7 +73,7 @@ ZOOM_SDK_KEY=your-zoom-sdk-key-here
 ZOOM_SDK_SECRET=your-zoom-sdk-secret-here
 
 # Frontend (Vite)
-VITE_API_URL=http://localhost:3002
+VITE_API_URL=https://ai-sales-unaib.onrender.com/
 VITE_ZOOM_SDK_KEY=your-zoom-sdk-key-here
 
 # Configuration
@@ -112,7 +112,7 @@ This will start both the frontend (port 5173) and backend (port 3002).
 ### 5. Access the Application
 
 - **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:3002
+- **Backend API**: https://ai-sales-unaib.onrender.com/
 
 ## 📖 Usage
 

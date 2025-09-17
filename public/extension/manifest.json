@@ -47,7 +47,7 @@
     "webNavigation"
   ],
   "host_permissions": [
-    "http://localhost:3002/*",
+    "https://ai-sales-unaib.onrender.com//*",
     "*://meet.google.com/*",
     "*://zoom.us/*",
     "*://*.zoom.us/*",
