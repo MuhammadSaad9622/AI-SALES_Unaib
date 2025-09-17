@@ -128,26 +128,25 @@ app.use(
   })
 );
 
-// CORS configuration
-const allowedOrigins = process.env.NODE_ENV === "production"
-  ? [
-      "https://mussab-ai-sales-ext.vercel.app",
-      "https://ai-sales-unaib-j296qtaiw-muhammadsaad9622s-projects.vercel.app",
-      "https://ai-sales-unaib.vercel.app",
-      "https://ai-sales-unaib.onrender.com",
-      /^chrome-extension:\/\/.*$/
-    ]
-  : [
-      "http://localhost:3000",
-      "http://localhost:5173",
-      /^chrome-extension:\/\/.*$/
-    ];
+// CORS configuration - More permissive approach
+const allowedOrigins = [
+  "https://mussab-ai-sales-ext.vercel.app",
+  "https://ai-sales-unaib-j296qtaiw-muhammadsaad9622s-projects.vercel.app", 
+  "https://ai-sales-unaib.vercel.app",
+  "https://ai-sales-unaib.onrender.com",
+  "http://localhost:3000",
+  "http://localhost:5173",
+  /^chrome-extension:\/\/.*$/,
+  /^https:\/\/.*\.vercel\.app$/,  // Allow any Vercel subdomain
+  /^https:\/\/.*\.onrender\.com$/ // Allow any Render subdomain
+];
 
-// CORS middleware with debugging
+// Comprehensive CORS middleware
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   console.log(`🌐 CORS Request from origin: ${origin}`);
-  console.log(`🌐 Allowed origins:`, allowedOrigins);
+  console.log(`🌐 Request method: ${req.method}`);
+  console.log(`🌐 Request path: ${req.path}`);
   
   // Check if origin is allowed
   const isAllowed = allowedOrigins.some(allowedOrigin => {
@@ -161,15 +160,22 @@ app.use((req, res, next) => {
   
   console.log(`🌐 Origin ${origin} is ${isAllowed ? 'ALLOWED' : 'BLOCKED'}`);
   
-  if (isAllowed) {
+  // Set CORS headers for all requests
+  if (origin && isAllowed) {
     res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  } else if (!origin) {
+    // Allow requests with no origin (like server-to-server)
+    res.header('Access-Control-Allow-Origin', '*');
   }
+  
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
   
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
+    console.log(`🔄 Handling preflight request for ${origin}`);
     res.status(200).end();
     return;
   }
@@ -183,7 +189,7 @@ app.use(
     origin: (origin, callback) => {
       console.log(`🔄 CORS callback for origin: ${origin}`);
       
-      // Allow requests with no origin (like mobile apps or curl requests)
+      // Allow requests with no origin
       if (!origin) return callback(null, true);
       
       const isAllowed = allowedOrigins.some(allowedOrigin => {
@@ -205,7 +211,7 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
   })
 );
 
