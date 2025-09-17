@@ -53,7 +53,7 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
     credentials: true,
   },
-});.
+});
 
 // Initialize RTMS service
 // Set up RTMS transcript handler to follow same flow as existing transcription
