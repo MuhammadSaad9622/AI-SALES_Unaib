@@ -53,7 +53,7 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
     credentials: true,
   },
-});
+});.
 
 // Initialize RTMS service
 // Set up RTMS transcript handler to follow same flow as existing transcription
@@ -133,6 +133,7 @@ const allowedOrigins = process.env.NODE_ENV === "production"
   ? [
       "https://mussab-ai-sales-ext.vercel.app",
       "https://ai-sales-unaib-j296qtaiw-muhammadsaad9622s-projects.vercel.app",
+      "https://ai-sales-unaib.vercel.app",
       "https://ai-sales-unaib.onrender.com",
       /^chrome-extension:\/\/.*$/
     ]
