@@ -134,17 +134,74 @@ const allowedOrigins = process.env.NODE_ENV === "production"
       "https://mussab-ai-sales-ext.vercel.app",
       "https://ai-sales-unaib-j296qtaiw-muhammadsaad9622s-projects.vercel.app",
       "https://ai-sales-unaib.onrender.com",
-      "chrome-extension://*"
+      /^chrome-extension:\/\/.*$/
     ]
   : [
       "http://localhost:3000",
       "http://localhost:5173",
-      "chrome-extension://*"
+      /^chrome-extension:\/\/.*$/
     ];
 
+// CORS middleware with debugging
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  console.log(`🌐 CORS Request from origin: ${origin}`);
+  console.log(`🌐 Allowed origins:`, allowedOrigins);
+  
+  // Check if origin is allowed
+  const isAllowed = allowedOrigins.some(allowedOrigin => {
+    if (typeof allowedOrigin === 'string') {
+      return allowedOrigin === origin;
+    } else if (allowedOrigin instanceof RegExp) {
+      return allowedOrigin.test(origin);
+    }
+    return false;
+  });
+  
+  console.log(`🌐 Origin ${origin} is ${isAllowed ? 'ALLOWED' : 'BLOCKED'}`);
+  
+  if (isAllowed) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  }
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  next();
+});
+
+// Additional CORS middleware as backup
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      console.log(`🔄 CORS callback for origin: ${origin}`);
+      
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      const isAllowed = allowedOrigins.some(allowedOrigin => {
+        if (typeof allowedOrigin === 'string') {
+          return allowedOrigin === origin;
+        } else if (allowedOrigin instanceof RegExp) {
+          return allowedOrigin.test(origin);
+        }
+        return false;
+      });
+      
+      if (isAllowed) {
+        console.log(`✅ CORS allowed for origin: ${origin}`);
+        callback(null, true);
+      } else {
+        console.log(`❌ CORS blocked for origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
