@@ -256,7 +256,7 @@ function setupPanelEventListeners() {
   const openDashboardBtn = document.getElementById('open-dashboard');
   if (openDashboardBtn) {
     openDashboardBtn.addEventListener('click', () => {
-      const dashboardUrl = 'https://ai-sales-unaib.onrender.com/';
+      const dashboardUrl = 'https://ai-sales-unaib.onrender.com';
       window.open(dashboardUrl, '_blank');
     });
   }

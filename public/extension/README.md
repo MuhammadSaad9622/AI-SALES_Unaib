@@ -60,7 +60,7 @@ The extension offers several customization options:
 
 ## Support
 
-For additional help, contact support at support@ai-sales-assistant.com or visit the help center at https://ai-sales-unaib.onrender.com//help
+For additional help, contact support at support@ai-sales-assistant.com or visit the help center at https://ai-sales-unaib.onrender.com/help
 
 ## License
 

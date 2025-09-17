@@ -6,7 +6,7 @@ class GoogleMeetService {
     this.oauth2Client = new google.auth.OAuth2(
       config.GOOGLE_CLIENT_ID,
       config.GOOGLE_CLIENT_SECRET,
-      'https://ai-sales-unaib.onrender.com//auth/google/callback'
+      'https://ai-sales-unaib.onrender.com/auth/google/callback'
     );
     
     this.calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });

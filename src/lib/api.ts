@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Use environment variable or fallback to default
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "https://ai-sales-unaib.onrender.com//api";
+  import.meta.env.VITE_API_URL || "https://ai-sales-unaib.onrender.com/api";
 
 // Create axios instance with default config
 const apiClient = axios.create({

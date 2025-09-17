@@ -1,7 +1,7 @@
 // Configuration object (inline to avoid import issues)
 const CONFIG = {
   API: {
-    BASE_URL: 'https://ai-sales-unaib.onrender.com/',
+    BASE_URL: 'https://ai-sales-unaib.onrender.com',
     ENDPOINTS: {
       AUTH: '/api/auth',
       LOGIN: '/api/auth/login',
@@ -16,7 +16,7 @@ const CONFIG = {
     }
   },
   DASHBOARD: {
-    BASE_URL: 'https://ai-sales-unaib.onrender.com/',
+    BASE_URL: 'https://ai-sales-unaib.onrender.com',
     ROUTES: {
       HOME: '/',
       SESSIONS: '/sessions',

@@ -47,7 +47,7 @@
     "webNavigation"
   ],
   "host_permissions": [
-    "https://ai-sales-unaib.onrender.com//*",
+    "https://ai-sales-unaib.onrender.com/*",
     "*://meet.google.com/*",
     "*://zoom.us/*",
     "*://*.zoom.us/*",
