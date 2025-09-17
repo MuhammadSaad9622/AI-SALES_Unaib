@@ -129,9 +129,22 @@ app.use(
 );
 
 // CORS configuration
+const allowedOrigins = process.env.NODE_ENV === "production"
+  ? [
+      "https://mussab-ai-sales-ext.vercel.app",
+      "https://ai-sales-unaib-j296qtaiw-muhammadsaad9622s-projects.vercel.app",
+      "https://ai-sales-unaib.onrender.com",
+      "chrome-extension://*"
+    ]
+  : [
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "chrome-extension://*"
+    ];
+
 app.use(
   cors({
-    origin: config.CORS_ORIGIN,
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
