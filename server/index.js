@@ -48,7 +48,7 @@ const io = new Server(server, {
   cors: {
     origin:
       process.env.NODE_ENV === "production"
-        ? ["https://mussab-ai-sales-ext.vercel.app", "chrome-extension://*"]
+        ? ["https://mussab-ai-sales-ext.vercel.app", "https://ai-sales-unaib.onrender.com", "chrome-extension://*"]
         : ["http://localhost:3000", "chrome-extension://*"],
     methods: ["GET", "POST"],
     credentials: true,
