@@ -65,14 +65,6 @@ export const CallInterface: React.FC<CallInterfaceProps> = ({
     return () => clearInterval(interval);
   }, [isConnected, transcript.length, requestSuggestion]);
 
-  // Auto-join the call when component mounts and WebSocket is connected
-  useEffect(() => {
-    if (isConnected && callId && userId) {
-      console.log(`🔌 Auto-joining call ${callId} for user ${userId}`);
-      joinCall(callId, userId, "zoom");
-    }
-  }, [isConnected, callId, userId, joinCall]);
-
   const handleMeetingStart = (data: unknown) => {
     setIsCallActive(true);
     console.log("Meeting started:", data);
@@ -120,9 +112,6 @@ export const CallInterface: React.FC<CallInterfaceProps> = ({
             >
               {isConnected ? "🟢 Connected" : "🔴 Disconnected"}
             </div>
-            <span className="text-sm text-slate-600 font-mono bg-slate-100 px-3 py-1 rounded-lg">
-              {callId.slice(0, 8)}...
-            </span>
           </div>
         </div>
       </div>
@@ -169,9 +158,6 @@ export const CallInterface: React.FC<CallInterfaceProps> = ({
             />
           </div>
         </div>
-
-        {/* Right Panel - AI Features */}
-      
       </div>
     </div>
   );

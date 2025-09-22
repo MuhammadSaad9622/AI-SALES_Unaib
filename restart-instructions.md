@@ -16,7 +16,7 @@ The error is occurring because the client application is still trying to connect
    
    Open `src/lib/api.ts` and change:
    ```typescript
-   const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://ai-sales-unaib.onrender.com/api';
+   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
    ```
    
    to:
