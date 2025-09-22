@@ -1,16 +1,16 @@
-import { google } from 'googleapis';
-import config from '../config/config.js';
+import { google } from "googleapis";
+import config from "../config/config.js";
 
 class GoogleMeetService {
   constructor() {
     this.oauth2Client = new google.auth.OAuth2(
       config.GOOGLE_CLIENT_ID,
       config.GOOGLE_CLIENT_SECRET,
-      'https://ai-sales-unaib.onrender.com/api/meetings/google/callback'
+      "http://localhost:3002/api/meetings/google/callback"
     );
-    
-    this.calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
-    this.meet = google.meet({ version: 'v2', auth: this.oauth2Client });
+
+    this.calendar = google.calendar({ version: "v3", auth: this.oauth2Client });
+    this.meet = google.meet({ version: "v2", auth: this.oauth2Client });
   }
 
   // Set OAuth2 credentials
@@ -21,17 +21,17 @@ class GoogleMeetService {
   // Generate OAuth2 URL for user authentication
   generateAuthUrl(state = null) {
     const scopes = [
-      'https://www.googleapis.com/auth/calendar',
-      'https://www.googleapis.com/auth/calendar.events',
-      'https://www.googleapis.com/auth/meetings.space.created',
-      'https://www.googleapis.com/auth/meetings.space.readonly'
+      "https://www.googleapis.com/auth/calendar",
+      "https://www.googleapis.com/auth/calendar.events",
+      "https://www.googleapis.com/auth/meetings.space.created",
+      "https://www.googleapis.com/auth/meetings.space.readonly",
     ];
 
     return this.oauth2Client.generateAuthUrl({
-      access_type: 'offline',
+      access_type: "offline",
       scope: scopes,
-      prompt: 'consent',
-      state: state
+      prompt: "consent",
+      state: state,
     });
   }
 
@@ -41,7 +41,7 @@ class GoogleMeetService {
       const { tokens } = await this.oauth2Client.getToken(code);
       return tokens;
     } catch (error) {
-      console.error('Failed to exchange code for tokens:', error);
+      console.error("Failed to exchange code for tokens:", error);
       throw new Error(`Failed to exchange code for tokens: ${error.message}`);
     }
   }
@@ -53,7 +53,7 @@ class GoogleMeetService {
       const { credentials } = await this.oauth2Client.refreshAccessToken();
       return credentials;
     } catch (error) {
-      console.error('Failed to refresh token:', error);
+      console.error("Failed to refresh token:", error);
       throw new Error(`Failed to refresh token: ${error.message}`);
     }
   }
@@ -65,47 +65,50 @@ class GoogleMeetService {
 
       // Create calendar event with Google Meet
       const event = {
-        summary: meetingData.topic || 'AI-Assisted Sales Call',
-        description: meetingData.description || 'Sales call with AI assistance',
+        summary: meetingData.topic || "AI-Assisted Sales Call",
+        description: meetingData.description || "Sales call with AI assistance",
         start: {
           dateTime: meetingData.startTime,
-          timeZone: meetingData.timezone || 'UTC',
+          timeZone: meetingData.timezone || "UTC",
         },
         end: {
-          dateTime: new Date(new Date(meetingData.startTime).getTime() + (meetingData.duration || 60) * 60000).toISOString(),
-          timeZone: meetingData.timezone || 'UTC',
+          dateTime: new Date(
+            new Date(meetingData.startTime).getTime() +
+              (meetingData.duration || 60) * 60000
+          ).toISOString(),
+          timeZone: meetingData.timezone || "UTC",
         },
         attendees: meetingData.attendees || [],
         conferenceData: {
           createRequest: {
             requestId: `meet-${Date.now()}`,
             conferenceSolutionKey: {
-              type: 'hangoutsMeet'
-            }
-          }
+              type: "hangoutsMeet",
+            },
+          },
         },
         reminders: {
           useDefault: false,
           overrides: [
-            { method: 'email', minutes: 24 * 60 },
-            { method: 'popup', minutes: 10 }
-          ]
+            { method: "email", minutes: 24 * 60 },
+            { method: "popup", minutes: 10 },
+          ],
         },
         guestsCanInviteOthers: meetingData.guestsCanInviteOthers || false,
         guestsCanModify: meetingData.guestsCanModify || false,
-        guestsCanSeeOtherGuests: meetingData.guestsCanSeeOtherGuests || true
+        guestsCanSeeOtherGuests: meetingData.guestsCanSeeOtherGuests || true,
       };
 
       const response = await this.calendar.events.insert({
-        calendarId: 'primary',
+        calendarId: "primary",
         resource: event,
         conferenceDataVersion: 1,
-        sendUpdates: meetingData.sendUpdates || 'all'
+        sendUpdates: meetingData.sendUpdates || "all",
       });
 
       const eventData = response.data;
       const meetUrl = eventData.conferenceData?.entryPoints?.find(
-        entry => entry.entryPointType === 'video'
+        (entry) => entry.entryPointType === "video"
       )?.uri;
 
       return {
@@ -124,10 +127,10 @@ class GoogleMeetService {
         attendees: eventData.attendees || [],
         creator: eventData.creator,
         organizer: eventData.organizer,
-        status: eventData.status
+        status: eventData.status,
       };
     } catch (error) {
-      console.error('Failed to create Google Meet:', error);
+      console.error("Failed to create Google Meet:", error);
       throw new Error(`Failed to create Google Meet: ${error.message}`);
     }
   }
@@ -138,13 +141,13 @@ class GoogleMeetService {
       this.setCredentials(userTokens);
 
       const response = await this.calendar.events.get({
-        calendarId: 'primary',
-        eventId
+        calendarId: "primary",
+        eventId,
       });
 
       const eventData = response.data;
       const meetUrl = eventData.conferenceData?.entryPoints?.find(
-        entry => entry.entryPointType === 'video'
+        (entry) => entry.entryPointType === "video"
       )?.uri;
 
       return {
@@ -160,10 +163,10 @@ class GoogleMeetService {
         attendees: eventData.attendees || [],
         status: eventData.status,
         creator: eventData.creator,
-        organizer: eventData.organizer
+        organizer: eventData.organizer,
       };
     } catch (error) {
-      console.error('Failed to get Google Meet details:', error);
+      console.error("Failed to get Google Meet details:", error);
       throw new Error(`Failed to get Google Meet details: ${error.message}`);
     }
   }
@@ -174,20 +177,20 @@ class GoogleMeetService {
       this.setCredentials(userTokens);
 
       const response = await this.calendar.events.list({
-        calendarId: 'primary',
+        calendarId: "primary",
         timeMin: timeMin || new Date().toISOString(),
         maxResults,
         singleEvents: true,
-        orderBy: 'startTime',
-        q: 'meet.google.com'
+        orderBy: "startTime",
+        q: "meet.google.com",
       });
 
       const events = response.data.items || [];
-      
+
       return {
-        meetings: events.map(event => {
+        meetings: events.map((event) => {
           const meetUrl = event.conferenceData?.entryPoints?.find(
-            entry => entry.entryPointType === 'video'
+            (entry) => entry.entryPointType === "video"
           )?.uri;
 
           return {
@@ -200,14 +203,14 @@ class GoogleMeetService {
             meetUrl,
             htmlLink: event.htmlLink,
             status: event.status,
-            attendees: event.attendees || []
+            attendees: event.attendees || [],
           };
         }),
         nextPageToken: response.data.nextPageToken,
-        timeZone: response.data.timeZone
+        timeZone: response.data.timeZone,
       };
     } catch (error) {
-      console.error('Failed to list Google Meet meetings:', error);
+      console.error("Failed to list Google Meet meetings:", error);
       throw new Error(`Failed to list Google Meet meetings: ${error.message}`);
     }
   }
@@ -218,15 +221,15 @@ class GoogleMeetService {
       this.setCredentials(userTokens);
 
       const response = await this.calendar.events.patch({
-        calendarId: 'primary',
+        calendarId: "primary",
         eventId,
         resource: updateData,
-        sendUpdates: 'all'
+        sendUpdates: "all",
       });
 
       return response.data;
     } catch (error) {
-      console.error('Failed to update Google Meet:', error);
+      console.error("Failed to update Google Meet:", error);
       throw new Error(`Failed to update Google Meet: ${error.message}`);
     }
   }
@@ -237,14 +240,14 @@ class GoogleMeetService {
       this.setCredentials(userTokens);
 
       await this.calendar.events.delete({
-        calendarId: 'primary',
+        calendarId: "primary",
         eventId,
-        sendUpdates: 'all'
+        sendUpdates: "all",
       });
 
       return { success: true };
     } catch (error) {
-      console.error('Failed to delete Google Meet:', error);
+      console.error("Failed to delete Google Meet:", error);
       throw new Error(`Failed to delete Google Meet: ${error.message}`);
     }
   }
@@ -255,12 +258,12 @@ class GoogleMeetService {
       this.setCredentials(userTokens);
 
       const response = await this.calendar.calendarList.list();
-      
+
       return {
-        calendars: response.data.items || []
+        calendars: response.data.items || [],
       };
     } catch (error) {
-      console.error('Failed to get calendars:', error);
+      console.error("Failed to get calendars:", error);
       throw new Error(`Failed to get calendars: ${error.message}`);
     }
   }
@@ -269,20 +272,21 @@ class GoogleMeetService {
   async getMeetingRecordings(userTokens, meetingId) {
     try {
       this.setCredentials(userTokens);
-      
-      const drive = google.drive({ version: 'v3', auth: this.oauth2Client });
-      
+
+      const drive = google.drive({ version: "v3", auth: this.oauth2Client });
+
       // Search for recordings related to the meeting
       const response = await drive.files.list({
         q: `name contains '${meetingId}' and mimeType contains 'video'`,
-        fields: 'files(id, name, size, createdTime, webViewLink, webContentLink)'
+        fields:
+          "files(id, name, size, createdTime, webViewLink, webContentLink)",
       });
 
       return {
-        recordings: response.data.files || []
+        recordings: response.data.files || [],
       };
     } catch (error) {
-      console.error('Failed to get meeting recordings:', error);
+      console.error("Failed to get meeting recordings:", error);
       throw new Error(`Failed to get meeting recordings: ${error.message}`);
     }
   }
@@ -291,12 +295,12 @@ class GoogleMeetService {
   async startAIMonitoring(meetingId, callId, io) {
     // Google Meet doesn't have real-time webhooks like Zoom
     // We can implement polling or use Google Calendar push notifications
-    
+
     // For now, we'll emit a meeting started event
-    io.emit('meetingStarted', { 
-      callId, 
-      meetingId, 
-      platform: 'google_meet' 
+    io.emit("meetingStarted", {
+      callId,
+      meetingId,
+      platform: "google_meet",
     });
 
     // You could implement Calendar API push notifications here
@@ -307,13 +311,13 @@ class GoogleMeetService {
   async validateTokens(tokens) {
     try {
       this.setCredentials(tokens);
-      
+
       // Try to make a simple API call to validate tokens
       await this.calendar.calendarList.list({ maxResults: 1 });
-      
+
       return true;
     } catch (error) {
-      console.error('Token validation failed:', error);
+      console.error("Token validation failed:", error);
       return false;
     }
   }

@@ -48,7 +48,7 @@ export const useWebSocket = (callId: string, userId?: string) => {
     console.log("🔌 Creating Socket.IO connection...");
     console.log(
       "🌐 Server URL:",
-      import.meta.env.VITE_API_URL || "https://ai-sales-unaib.onrender.com"
+      import.meta.env.VITE_API_URL || "http://localhost:3002"
     );
 
     const authToken =
@@ -56,7 +56,7 @@ export const useWebSocket = (callId: string, userId?: string) => {
     console.log("🔑 Auth token present:", !!authToken);
 
     const newSocket = io(
-      import.meta.env.VITE_API_URL || "https://ai-sales-unaib.onrender.com",
+      import.meta.env.VITE_API_URL || "http://localhost:3002",
       {
         transports: ["websocket", "polling"],
         auth: {
@@ -152,7 +152,7 @@ export const useWebSocket = (callId: string, userId?: string) => {
           message: "Test message for AI response",
         }),
       });
-      
+
       if (response.ok) {
         const result = await response.json();
         console.log("✅ Test AI suggestion sent:", result);
@@ -199,15 +199,19 @@ export const useWebSocket = (callId: string, userId?: string) => {
     socket.on("newSuggestion", (suggestion: AISuggestion) => {
       setData((prev) => {
         // Check for duplicates based on text and timestamp
-        const isDuplicate = prev.suggestions.some(existing => 
-          existing.text === suggestion.text && 
-          Math.abs(new Date(existing.timestamp).getTime() - new Date(suggestion.timestamp).getTime()) < 1000
+        const isDuplicate = prev.suggestions.some(
+          (existing) =>
+            existing.text === suggestion.text &&
+            Math.abs(
+              new Date(existing.timestamp).getTime() -
+                new Date(suggestion.timestamp).getTime()
+            ) < 1000
         );
-        
+
         if (isDuplicate) {
           return prev;
         }
-        
+
         const newSuggestions = [...prev.suggestions.slice(-10), suggestion];
         return {
           ...prev,
@@ -301,6 +305,63 @@ export const useWebSocket = (callId: string, userId?: string) => {
     };
   }, [disconnect]);
 
+  const sendAudioData = useCallback(
+    (audioData: string) => {
+      if (socket && socket.connected) {
+        socket.emit("audioData", {
+          callId,
+          audioData,
+        });
+      }
+    },
+    [socket, callId]
+  );
+
+  // NEW: Send meeting duration update
+  const sendDurationUpdate = useCallback(
+    (duration: number) => {
+      if (socket && socket.connected) {
+        socket.emit("meetingEvent", {
+          callId,
+          event: "duration_update",
+          platform: "zoom", // or detect platform dynamically
+          payload: { duration },
+        });
+      }
+    },
+    [socket, callId]
+  );
+
+  // NEW: Send meeting timer start
+  const sendMeetingStart = useCallback(
+    (startTime: string) => {
+      if (socket && socket.connected) {
+        socket.emit("meetingEvent", {
+          callId,
+          event: "meeting_started",
+          platform: "zoom",
+          payload: { startTime },
+        });
+      }
+    },
+    [socket, callId]
+  );
+
+  // NEW: Send meeting timer end
+  const sendMeetingEnd = useCallback(
+    (endTime: string, duration: number) => {
+      if (socket && socket.connected) {
+        socket.emit("meetingEvent", {
+          callId,
+          event: "meeting_ended",
+          platform: "zoom",
+          payload: { endTime, duration },
+        });
+      }
+    },
+    [socket, callId]
+  );
+
   return {
     ...data,
     joinCall,
@@ -308,10 +369,9 @@ export const useWebSocket = (callId: string, userId?: string) => {
     markSuggestionUsed,
     requestSuggestion,
     socket,
-    sendAudioData: (audioData: string) => {
-      if (socket && socket.connected) {
-        socket.emit("audioData", { audioData });
-      }
-    },
+    sendAudioData,
+    sendDurationUpdate,
+    sendMeetingStart,
+    sendMeetingEnd,
   };
 };

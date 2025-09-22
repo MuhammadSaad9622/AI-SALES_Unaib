@@ -1,206 +1,237 @@
 import express from "express";
+import { authenticate } from "../middleware/auth.js"; // Import the named export
 import { catchAsync } from "../middleware/errorHandler.js";
-import {
-  validateCallCreation,
-  validateObjectId,
-  validatePagination,
-} from "../middleware/validation.js";
-import { authenticate } from "../middleware/auth.js";
-import Call from "../models/Call.js";
-import Transcript from "../models/Transcript.js";
-import AISuggestion from "../models/AISuggestion.js";
 
 const router = express.Router();
 
-// Apply authentication to all routes
-router.use(authenticate);
-
-// Get user's calls with pagination and filtering
+// GET /api/calls - Get all calls for user
 router.get(
   "/",
-  validatePagination,
+  authenticate, // Use the authenticate middleware
   catchAsync(async (req, res) => {
-    const { page, limit, skip } = req.pagination;
     const {
+      page = 1,
+      limit = 10,
       status,
       platform,
-      search,
-      sortBy = "createdAt",
-      sortOrder = "desc",
+      sort = "createdAt:desc",
     } = req.query;
 
-    // Build filter
+    const Call = (await import("../models/Call.js")).default;
+
     const filter = { user: req.user._id };
+    if (status) filter.status = status;
+    if (platform) filter.platform = platform;
 
-    if (status) {
-      filter.status = status;
-    }
+    const [sortField, sortOrder] = sort.split(":");
+    const sortOptions = { [sortField]: sortOrder === "desc" ? -1 : 1 };
 
-    if (platform) {
-      filter.platform = platform;
-    }
+    const calls = await Call.find(filter)
+      .sort(sortOptions)
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .lean();
 
-    if (search) {
-      filter.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { notes: { $regex: search, $options: "i" } },
-      ];
-    }
-
-    // Build sort
-    const sort = {};
-    sort[sortBy] = sortOrder === "desc" ? -1 : 1;
-
-    // Get calls with pagination
-    const [calls, total] = await Promise.all([
-      Call.find(filter)
-        .sort(sort)
-        .skip(skip)
-        .limit(limit)
-        .populate("user", "name email")
-        .lean(),
-      Call.countDocuments(filter),
-    ]);
-
-    // Calculate pagination info
-    const totalPages = Math.ceil(total / limit);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
+    const total = await Call.countDocuments(filter);
 
     res.json({
       success: true,
       data: {
         calls,
-        pagination: {
-          currentPage: page,
-          totalPages,
-          totalItems: total,
-          itemsPerPage: limit,
-          hasNextPage,
-          hasPrevPage,
-        },
+        total,
+        pages: Math.ceil(total / limit),
+        currentPage: page,
       },
     });
   })
 );
 
-// Create new call
+// GET /api/calls/:id - Get specific call
+router.get(
+  "/:id",
+  authenticate,
+  catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const Call = (await import("../models/Call.js")).default;
+
+    let call = null;
+    try {
+      call = await Call.findById(id);
+    } catch (error) {
+      // Try by meetingId if not found by _id
+      call = await Call.findOne({ meetingId: id });
+    }
+
+    if (!call) {
+      return res.status(404).json({
+        success: false,
+        message: "Call not found",
+      });
+    }
+
+    if (call.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to access this call",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: call,
+    });
+  })
+);
+
+// POST /api/calls - Create new call with duplicate prevention
 router.post(
   "/",
-  validateCallCreation,
+  authenticate,
   catchAsync(async (req, res) => {
+    const Call = (await import("../models/Call.js")).default;
+
+    // Check for existing call with same meetingId to prevent duplicates
+    if (req.body.meetingId) {
+      const existingCall = await Call.findOne({
+        meetingId: req.body.meetingId,
+        user: req.user._id,
+        status: { $in: ["scheduled", "active", "in_progress"] },
+      });
+
+      if (existingCall) {
+        console.log(
+          `📝 Found existing call for meetingId ${req.body.meetingId}: ${existingCall._id}`
+        );
+        return res.status(200).json({
+          success: true,
+          message: "Using existing call",
+          data: existingCall,
+        });
+      }
+    }
+
     const callData = {
       ...req.body,
       user: req.user._id,
     };
 
     const call = await Call.create(callData);
-    await call.populate("user", "name email");
+
+    console.log(`✅ New call created: ${call._id} for user: ${req.user._id}`);
 
     res.status(201).json({
       success: true,
       message: "Call created successfully",
-      data: {
-        call,
-      },
+      data: call,
     });
   })
 );
 
-// Get specific call with transcripts and suggestions
-router.get(
-  "/:id",
-  validateObjectId("id"),
-  catchAsync(async (req, res) => {
-    const call = await Call.findOne({
-      _id: req.params.id,
-      user: req.user._id,
-    }).populate("user", "name email");
-
-    if (!call) {
-      return res.status(404).json({
-        success: false,
-        message: "Call not found",
-      });
-    }
-
-    // Get transcripts and suggestions
-    const [transcripts, suggestions] = await Promise.all([
-      Transcript.find({ call: call._id }).sort({ timestamp: 1 }),
-      AISuggestion.find({ call: call._id }).sort({ createdAt: -1 }),
-    ]);
-
-    res.json({
-      success: true,
-      data: {
-        call,
-        transcripts,
-        suggestions,
-      },
-    });
-  })
-);
-
-// Update call
+// PATCH /api/calls/:id - Update call
 router.patch(
   "/:id",
-  validateObjectId("id"),
+  authenticate,
   catchAsync(async (req, res) => {
-    // Fields that can be updated
-    const allowedFields = [
-      "title",
-      "endTime",
-      "duration",
-      "status",
-      "participants",
-      "performanceData",
-      "recording",
-      "notes",
-      "tags",
-    ];
+    const { id } = req.params;
+    const updates = req.body;
 
-    const updates = {};
-    Object.keys(req.body).forEach((key) => {
-      if (allowedFields.includes(key)) {
-        updates[key] = req.body[key];
+    console.log(`📝 PATCH /calls/${id} - Updates:`, updates);
+
+    try {
+      const Call = (await import("../models/Call.js")).default;
+
+      // Find call by ID or meetingId
+      let call = null;
+
+      try {
+        call = await Call.findById(id);
+        if (call) {
+          console.log(
+            `📝 Found call by ID: ${call._id}, current status: ${call.status}, duration: ${call.duration}`
+          );
+        }
+      } catch (error) {
+        console.log(`📝 Could not find call by ID: ${id}`);
       }
-    });
 
-    const call = await Call.findOneAndUpdate(
-      { _id: req.params.id, user: req.user._id },
-      updates,
-      {
-        new: true,
-        runValidators: true,
+      if (!call) {
+        call = await Call.findOne({ meetingId: id });
+        if (call) {
+          console.log(
+            `📝 Found call by meetingId: ${call._id}, current status: ${call.status}, duration: ${call.duration}`
+          );
+        }
       }
-    ).populate("user", "name email");
 
-    if (!call) {
-      return res.status(404).json({
+      if (!call) {
+        console.log(`❌ No call found for ID: ${id}`);
+        return res.status(404).json({
+          success: false,
+          message: "Call not found",
+        });
+      }
+
+      // Check if user owns the call
+      if (call.user.toString() !== req.user._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to update this call",
+        });
+      }
+
+      // Store old values for logging
+      const oldStatus = call.status;
+      const oldDuration = call.duration;
+
+      // Update the call with provided data
+      Object.keys(updates).forEach((key) => {
+        if (key !== "_id" && key !== "user" && key !== "createdAt") {
+          call[key] = updates[key];
+        }
+      });
+
+      // Save the updated call
+      const updatedCall = await call.save();
+
+      console.log(`✅ Call updated successfully:`, {
+        callId: updatedCall._id,
+        oldStatus,
+        newStatus: updatedCall.status,
+        oldDuration,
+        newDuration: updatedCall.duration,
+        updatedFields: Object.keys(updates),
+      });
+
+      res.json({
+        success: true,
+        message: "Call updated successfully",
+        data: updatedCall,
+      });
+    } catch (error) {
+      console.error(`❌ Failed to update call ${id}:`, error);
+      res.status(500).json({
         success: false,
-        message: "Call not found",
+        message: "Failed to update call",
+        error: error.message,
       });
     }
-
-    res.json({
-      success: true,
-      message: "Call updated successfully",
-      data: {
-        call,
-      },
-    });
   })
 );
 
-// Delete call
+// DELETE /api/calls/:id - Delete call
 router.delete(
   "/:id",
-  validateObjectId("id"),
+  authenticate,
   catchAsync(async (req, res) => {
-    const call = await Call.findOneAndDelete({
-      _id: req.params.id,
-      user: req.user._id,
-    });
+    const { id } = req.params;
+    const Call = (await import("../models/Call.js")).default;
+
+    let call = null;
+    try {
+      call = await Call.findById(id);
+    } catch (error) {
+      call = await Call.findOne({ meetingId: id });
+    }
 
     if (!call) {
       return res.status(404).json({
@@ -209,11 +240,14 @@ router.delete(
       });
     }
 
-    // Delete associated transcripts and suggestions
-    await Promise.all([
-      Transcript.deleteMany({ call: call._id }),
-      AISuggestion.deleteMany({ call: call._id }),
-    ]);
+    if (call.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to delete this call",
+      });
+    }
+
+    await Call.findByIdAndDelete(call._id);
 
     res.json({
       success: true,
@@ -222,68 +256,13 @@ router.delete(
   })
 );
 
-// Get call statistics
-router.get(
-  "/:id/stats",
-  validateObjectId("id"),
-  catchAsync(async (req, res) => {
-    const call = await Call.findOne({
-      _id: req.params.id,
-      user: req.user._id,
-    });
-
-    if (!call) {
-      return res.status(404).json({
-        success: false,
-        message: "Call not found",
-      });
-    }
-
-    // Get transcript summary
-    const transcriptSummary = await Transcript.getCallSummary(call._id);
-
-    // Get suggestion stats
-    const suggestionStats = await AISuggestion.aggregate([
-      { $match: { call: call._id } },
-      {
-        $group: {
-          _id: null,
-          totalSuggestions: { $sum: 1 },
-          usedSuggestions: { $sum: { $cond: ["$used", 1, 0] } },
-          averageConfidence: { $avg: "$confidence" },
-          suggestionsByType: { $push: "$type" },
-        },
-      },
-    ]);
-
-    const stats = suggestionStats[0] || {
-      totalSuggestions: 0,
-      usedSuggestions: 0,
-      averageConfidence: 0,
-      suggestionsByType: [],
-    };
-
-    res.json({
-      success: true,
-      data: {
-        call: {
-          id: call._id,
-          title: call.title,
-          duration: call.duration,
-          status: call.status,
-        },
-        transcriptSummary,
-        suggestionStats: stats,
-      },
-    });
-  })
-);
-
 // Start call (update status to active)
 router.patch(
   "/:id/start",
-  validateObjectId("id"),
+  authenticate,
   catchAsync(async (req, res) => {
+    const Call = (await import("../models/Call.js")).default;
+
     const call = await Call.findOneAndUpdate(
       { _id: req.params.id, user: req.user._id },
       {
@@ -313,8 +292,10 @@ router.patch(
 // End call (update status to completed)
 router.patch(
   "/:id/end",
-  validateObjectId("id"),
+  authenticate,
   catchAsync(async (req, res) => {
+    const Call = (await import("../models/Call.js")).default;
+
     const call = await Call.findOneAndUpdate(
       { _id: req.params.id, user: req.user._id },
       {
