@@ -23,8 +23,6 @@ import authRoutes from "./routes/auth.js";
 import callRoutes from "./routes/calls.js";
 import meetingRoutes from "./routes/meetings.js";
 import documentRoutes from "./routes/documentRoutes.js";
-// import transcriptRoutes from './routes/transcripts.js';
-// import aiRoutes from './routes/ai.js';
 import analyticsRoutes from "./routes/analytics.js";
 
 // Import services
@@ -48,7 +46,7 @@ const io = new Server(server, {
   cors: {
     origin:
       process.env.NODE_ENV === "production"
-        ? ["https://mussab-ai-sales-ext.vercel.app", "https://ai-sales-unaib-j296qtaiw-muhammadsaad9622s-projects.vercel.app", "chrome-extension://*"]
+        ? ["https://mussab-ai-sales-ext.vercel.app", "chrome-extension://*"]
         : ["http://localhost:3000", "chrome-extension://*"],
     methods: ["GET", "POST"],
     credentials: true,
@@ -128,90 +126,13 @@ app.use(
   })
 );
 
-// CORS configuration - More permissive approach
-const allowedOrigins = [
-  "https://mussab-ai-sales-ext.vercel.app",
-  "https://ai-sales-unaib-j296qtaiw-muhammadsaad9622s-projects.vercel.app", 
-  "https://ai-sales-unaib.vercel.app",
-  "https://ai-sales-unaib.onrender.com",
-  "http://localhost:3000",
-  "http://localhost:5173",
-  /^chrome-extension:\/\/.*$/,
-  /^https:\/\/.*\.vercel\.app$/,  // Allow any Vercel subdomain
-  /^https:\/\/.*\.onrender\.com$/ // Allow any Render subdomain
-];
-
-// Comprehensive CORS middleware
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  console.log(`🌐 CORS Request from origin: ${origin}`);
-  console.log(`🌐 Request method: ${req.method}`);
-  console.log(`🌐 Request path: ${req.path}`);
-  
-  // Check if origin is allowed
-  const isAllowed = allowedOrigins.some(allowedOrigin => {
-    if (typeof allowedOrigin === 'string') {
-      return allowedOrigin === origin;
-    } else if (allowedOrigin instanceof RegExp) {
-      return allowedOrigin.test(origin);
-    }
-    return false;
-  });
-  
-  console.log(`🌐 Origin ${origin} is ${isAllowed ? 'ALLOWED' : 'BLOCKED'}`);
-  
-  // Set CORS headers for all requests
-  if (origin && isAllowed) {
-    res.header('Access-Control-Allow-Origin', origin);
-  } else if (!origin) {
-    // Allow requests with no origin (like server-to-server)
-    res.header('Access-Control-Allow-Origin', '*');
-  }
-  
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  res.header('Access-Control-Max-Age', '86400'); // 24 hours
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    console.log(`🔄 Handling preflight request for ${origin}`);
-    res.status(200).end();
-    return;
-  }
-  
-  next();
-});
-
-// Additional CORS middleware as backup
+// CORS configuration
 app.use(
   cors({
-    origin: (origin, callback) => {
-      console.log(`🔄 CORS callback for origin: ${origin}`);
-      
-      // Allow requests with no origin
-      if (!origin) return callback(null, true);
-      
-      const isAllowed = allowedOrigins.some(allowedOrigin => {
-        if (typeof allowedOrigin === 'string') {
-          return allowedOrigin === origin;
-        } else if (allowedOrigin instanceof RegExp) {
-          return allowedOrigin.test(origin);
-        }
-        return false;
-      });
-      
-      if (isAllowed) {
-        console.log(`✅ CORS allowed for origin: ${origin}`);
-        callback(null, true);
-      } else {
-        console.log(`❌ CORS blocked for origin: ${origin}`);
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: config.CORS_ORIGIN,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -281,8 +202,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/calls", callRoutes);
 app.use("/api/meetings", meetingRoutes);
 app.use("/api/documents", documentRoutes);
-// app.use('/api/transcripts', transcriptRoutes);
-// app.use('/api/ai', aiRoutes);
 app.use("/api/analytics", analyticsRoutes);
 
 // Endpoint: Generate call summary using OpenAI
@@ -806,10 +725,60 @@ io.on("connection", (socket) => {
     try {
       const { callId, event, platform, payload } = data;
 
-      // Handle platform-specific meeting events
       console.log(
         `📹 Meeting event: ${event} on ${platform} for call ${callId}`
       );
+
+      // Handle duration updates with user context
+      if (event === "duration_update" && payload?.duration) {
+        try {
+          const Call = (await import("./models/Call.js")).default;
+
+          // Get user ID from socket
+          const userId = socket.userId;
+          if (!userId) {
+            console.log(`⚠️ No user ID found for socket ${socket.id}`);
+            return;
+          }
+
+          console.log(
+            `📝 WebSocket duration update - Call ID: ${callId}, Duration: ${payload.duration}, User: ${userId}`
+          );
+
+          // Find call with user verification to prevent unauthorized updates
+          let call = null;
+
+          try {
+            call = await Call.findOne({ _id: callId, user: userId });
+            if (call) {
+              console.log(`📝 Found call by ID: ${call._id}`);
+            }
+          } catch (error) {
+            console.log(`📝 Could not find call by ID: ${callId}`);
+          }
+
+          if (!call) {
+            call = await Call.findOne({ meetingId: callId, user: userId });
+            if (call) {
+              console.log(`📝 Found call by meetingId: ${call._id}`);
+            }
+          }
+
+          if (call) {
+            // Use the model method to update duration safely
+            await call.updateDuration(payload.duration, "websocket");
+            console.log(
+              `✅ Duration updated via WebSocket - Call: ${call._id}, Duration: ${payload.duration}s`
+            );
+          } else {
+            console.log(
+              `⚠️ No authorized call found for user ${userId} and call ${callId}`
+            );
+          }
+        } catch (error) {
+          console.error("Failed to update duration via WebSocket:", error);
+        }
+      }
 
       // Broadcast to all participants in the call
       io.to(callId).emit("meetingEvent", { event, platform, payload });
@@ -1418,29 +1387,10 @@ const startServer = async () => {
       console.log(`🌍 Environment: ${config.NODE_ENV}`);
     });
   } catch (error) {
-    console.error("❌ Failed to start server:", error);
+    console.error("Failed to start server:", error);
     process.exit(1);
   }
 };
 
-// Handle graceful shutdown
-process.on("SIGTERM", async () => {
-  console.log("🔄 SIGTERM received. Shutting down gracefully...");
-  server.close(async () => {
-    await database.disconnect();
-    process.exit(0);
-  });
-});
-
-process.on("SIGINT", async () => {
-  console.log("🔄 SIGINT received. Shutting down gracefully...");
-  server.close(async () => {
-    await database.disconnect();
-    process.exit(0);
-  });
-});
-
-// Start the server
 startServer();
-
 export default app;

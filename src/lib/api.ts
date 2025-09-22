@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Use environment variable or fallback to default
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "https://ai-sales-unaib.onrender.com/api";
+  import.meta.env.VITE_API_URL || "http://localhost:3002/api";
 
 // Create axios instance with default config
 const apiClient = axios.create({
@@ -175,8 +175,21 @@ export class APIService {
   }
 
   static async updateCall(id: string, updates: any) {
-    const response = await apiClient.patch(`/calls/${id}`, updates);
-    return response.data;
+    try {
+      console.log(`📝 API: Updating call ${id} with:`, updates);
+
+      const response = await apiClient.patch(`/calls/${id}`, updates);
+
+      console.log(`✅ API: Call update successful for ${id}:`, response.data);
+      return response.data;
+    } catch (error) {
+      console.error(
+        `❌ API: Failed to update call ${id}:`,
+        error.response?.data || error.message
+      );
+      const errorDetails = error.response?.data || {};
+      throw new Error(errorDetails.message || "Failed to update call");
+    }
   }
 
   static async deleteCall(id: string) {
@@ -484,6 +497,54 @@ export class APIService {
   // Health Check
   static async getHealth() {
     const response = await apiClient.get("/health");
+    return response.data;
+  }
+
+  // NEW: Update meeting duration in real-time (simplified)
+  static async updateMeetingDuration(
+    callId: string,
+    duration: number,
+    source: string = "manual"
+  ) {
+    try {
+      console.log(
+        `📝 API: Updating duration for call ${callId} - Duration: ${duration}s, Source: ${source}`
+      );
+
+      const response = await apiClient.patch(`/meetings/duration/${callId}`, {
+        duration,
+        source,
+      });
+
+      console.log(
+        `✅ API: Duration update successful for call ${callId}:`,
+        response.data
+      );
+      return response.data;
+    } catch (error) {
+      console.error(
+        `❌ API: Failed to update meeting duration for call ${callId}:`,
+        error.response?.data || error.message
+      );
+      const errorDetails = error.response?.data || {};
+      throw new Error(
+        errorDetails.message || "Failed to update meeting duration"
+      );
+    }
+  }
+
+  // AI Suggestion Analytics
+  static async getAISuggestionStats(timeRange = 30, detailed = false) {
+    const response = await apiClient.get("/analytics/ai-suggestions", {
+      params: { timeRange, detailed },
+    });
+    return response.data;
+  }
+
+  static async getAISuggestionStatsByType(timeRange = 30) {
+    const response = await apiClient.get("/analytics/ai-suggestions/by-type", {
+      params: { timeRange },
+    });
     return response.data;
   }
 }

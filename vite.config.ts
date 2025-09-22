@@ -10,7 +10,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://ai-sales-unaib.onrender.com',
+        target: 'http://localhost:3002',
         changeOrigin: true,
         secure: false,
       },

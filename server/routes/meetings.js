@@ -638,4 +638,122 @@ router.post(
   })
 );
 
+// Remove the entire duration POST endpoint - we only update existing calls
+
+// Keep only the PATCH endpoint for updating existing calls
+router.patch(
+  "/duration/:callId",
+  authenticate, // Add authentication middleware
+  catchAsync(async (req, res) => {
+    const { callId } = req.params;
+    const { duration, endTime, status, source = "manual" } = req.body;
+
+    console.log(`📝 Duration update request:`, {
+      callId,
+      duration,
+      endTime,
+      status,
+      source,
+      userId: req.user._id,
+    });
+
+    if (!duration && duration !== 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Duration is required",
+      });
+    }
+
+    try {
+      const Call = (await import("../models/Call.js")).default;
+
+      // Enhanced call finding with user verification
+      let call = null;
+
+      try {
+        call = await Call.findOne({
+          _id: callId,
+          user: req.user._id,
+        });
+        if (call) {
+          console.log(
+            `📝 Found call by ID: ${call._id}, current duration: ${call.duration}s, status: ${call.status}`
+          );
+        }
+      } catch (error) {
+        console.log(`📝 Could not find call by ID: ${callId}`);
+      }
+
+      if (!call) {
+        call = await Call.findOne({
+          meetingId: callId,
+          user: req.user._id,
+        });
+        if (call) {
+          console.log(
+            `📝 Found call by meetingId: ${call._id}, current duration: ${call.duration}s, status: ${call.status}`
+          );
+        }
+      }
+
+      if (!call) {
+        console.log(
+          `❌ No call found for ID: ${callId} and user: ${req.user._id}`
+        );
+        return res.status(404).json({
+          success: false,
+          message: "Call not found or access denied",
+        });
+      }
+
+      // Store old values for comparison
+      const oldDuration = call.duration;
+      const oldStatus = call.status;
+
+      // Update call using the model method to prevent duplicates
+      await call.updateDuration(duration, source);
+
+      // Update additional fields if provided
+      if (status) {
+        call.status = status;
+      }
+      if (endTime) {
+        call.endTime = new Date(endTime);
+      }
+
+      const savedCall = await call.save();
+
+      console.log(`✅ Call updated successfully:`, {
+        callId: savedCall._id,
+        oldDuration,
+        newDuration: savedCall.duration,
+        oldStatus,
+        newStatus: savedCall.status,
+        endTime: savedCall.endTime,
+        source,
+      });
+
+      res.json({
+        success: true,
+        message: "Call updated successfully",
+        data: {
+          callId: savedCall._id,
+          duration: savedCall.duration,
+          status: savedCall.status,
+          endTime: savedCall.endTime,
+          source: source,
+          updated: true,
+        },
+      });
+    } catch (error) {
+      console.error("❌ Failed to update call:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to update call",
+        error: error.message,
+      });
+    }
+  })
+);
+
 export default router;

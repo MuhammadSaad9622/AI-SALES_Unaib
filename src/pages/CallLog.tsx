@@ -84,7 +84,7 @@ export const CallLog: React.FC = () => {
       // Check if it's a network error
       if (err instanceof Error && err.message.includes("Network Error")) {
         alert(
-          "Cannot connect to the backend server. Please ensure the server is running on https://ai-sales-unaib.onrender.com"
+          "Cannot connect to the backend server. Please ensure the server is running on http://localhost:3002"
         );
       } else {
         alert(
@@ -150,7 +150,7 @@ export const CallLog: React.FC = () => {
           error.message.includes("ERR_NETWORK")
         ) {
           alert(
-            "Cannot connect to the backend server. Please ensure the server is running on https://ai-sales-unaib.onrender.com"
+            "Cannot connect to the backend server. Please ensure the server is running on http://localhost:3002"
           );
         } else if (error.message.includes("500")) {
           alert(

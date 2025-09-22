@@ -72,7 +72,15 @@ const App: React.FC = () => {
               }
             />
             <Route
-              path="/call/:id"
+              path="/calls/new"
+              element={
+                <AppLayout>
+                  <CallPage />
+                </AppLayout>
+              }
+            />
+            <Route
+              path="/calls/:callId"
               element={
                 <AppLayout>
                   <CallPage />

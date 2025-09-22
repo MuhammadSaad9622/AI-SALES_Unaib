@@ -24,7 +24,7 @@ ZOOM_SDK_KEY=your-zoom-sdk-key-here
 ZOOM_SDK_SECRET=your-zoom-sdk-secret-here
 
 # Frontend Environment Variables (Vite)
-VITE_API_URL=https://ai-sales-unaib.onrender.com
+VITE_API_URL=http://localhost:3002
 VITE_ZOOM_SDK_KEY=your-zoom-sdk-key-here
 
 # Configuration

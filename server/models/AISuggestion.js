@@ -194,31 +194,169 @@ aiSuggestionSchema.statics.getUserStats = async function (
   return result;
 };
 
-// Static method to get trending suggestions
-aiSuggestionSchema.statics.getTrendingSuggestions = async function (
-  timeRange = 7
+// Enhanced static method to get comprehensive suggestion statistics by user
+aiSuggestionSchema.statics.getDetailedUserStats = async function (
+  userId,
+  timeRange = 30
 ) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - timeRange);
 
-  return await this.aggregate([
+  // Main statistics aggregation
+  const mainStats = await this.aggregate([
     {
       $match: {
+        user: userId,
         createdAt: { $gte: startDate },
-        used: true,
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalSuggestions: { $sum: 1 },
+        usedSuggestions: {
+          $sum: { $cond: [{ $eq: ["$used", true] }, 1, 0] },
+        },
+        averageConfidence: { $avg: "$confidence" },
+        highConfidenceSuggestions: {
+          $sum: { $cond: [{ $gte: ["$confidence", 0.8] }, 1, 0] },
+        },
+        averageRating: {
+          $avg: {
+            $cond: [
+              { $ne: ["$feedback.rating", null] },
+              "$feedback.rating",
+              null,
+            ],
+          },
+        },
+        totalWithFeedback: {
+          $sum: {
+            $cond: [{ $ne: ["$feedback.rating", null] }, 1, 0],
+          },
+        },
+      },
+    },
+  ]);
+
+  // Statistics by type
+  const typeStats = await this.aggregate([
+    {
+      $match: {
+        user: userId,
+        createdAt: { $gte: startDate },
       },
     },
     {
       $group: {
         _id: "$type",
-        count: { $sum: 1 },
-        averageRating: { $avg: "$feedback.rating" },
+        total: { $sum: 1 },
+        used: { $sum: { $cond: [{ $eq: ["$used", true] }, 1, 0] } },
         averageConfidence: { $avg: "$confidence" },
+        averageRating: {
+          $avg: {
+            $cond: [
+              { $ne: ["$feedback.rating", null] },
+              "$feedback.rating",
+              null,
+            ],
+          },
+        },
       },
     },
-    { $sort: { count: -1 } },
-    { $limit: 10 },
+    { $sort: { total: -1 } },
   ]);
+
+  // Statistics by priority
+  const priorityStats = await this.aggregate([
+    {
+      $match: {
+        user: userId,
+        createdAt: { $gte: startDate },
+      },
+    },
+    {
+      $group: {
+        _id: "$priority",
+        total: { $sum: 1 },
+        used: { $sum: { $cond: [{ $eq: ["$used", true] }, 1, 0] } },
+      },
+    },
+    { $sort: { total: -1 } },
+  ]);
+
+  // Daily usage trends
+  const dailyTrends = await this.aggregate([
+    {
+      $match: {
+        user: userId,
+        createdAt: { $gte: startDate },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+        },
+        totalSuggestions: { $sum: 1 },
+        usedSuggestions: {
+          $sum: { $cond: [{ $eq: ["$used", true] }, 1, 0] },
+        },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  const result = mainStats[0] || {
+    totalSuggestions: 0,
+    usedSuggestions: 0,
+    averageConfidence: 0,
+    highConfidenceSuggestions: 0,
+    averageRating: 0,
+    totalWithFeedback: 0,
+  };
+
+  return {
+    ...result,
+    usageRate:
+      result.totalSuggestions > 0
+        ? result.usedSuggestions / result.totalSuggestions
+        : 0,
+    highConfidenceRate:
+      result.totalSuggestions > 0
+        ? result.highConfidenceSuggestions / result.totalSuggestions
+        : 0,
+    feedbackRate:
+      result.totalSuggestions > 0
+        ? result.totalWithFeedback / result.totalSuggestions
+        : 0,
+    byType: typeStats,
+    byPriority: priorityStats,
+    dailyTrends: dailyTrends,
+    timeRange: timeRange,
+  };
+};
+
+// Static method to get simple suggestion count by user
+aiSuggestionSchema.statics.getUserSuggestionCount = async function (
+  userId,
+  filters = {}
+) {
+  const query = { user: userId, ...filters };
+
+  const counts = await this.aggregate([
+    { $match: query },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: 1 },
+        used: { $sum: { $cond: [{ $eq: ["$used", true] }, 1, 0] } },
+        unused: { $sum: { $cond: [{ $eq: ["$used", false] }, 1, 0] } },
+      },
+    },
+  ]);
+
+  return counts[0] || { total: 0, used: 0, unused: 0 };
 };
 
 export default mongoose.model("AISuggestion", aiSuggestionSchema);
