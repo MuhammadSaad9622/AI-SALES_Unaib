@@ -1,5 +1,13 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Video, Settings, Users, Mic, MicOff, Share } from "lucide-react";
+import {
+  Video,
+  Settings,
+  Users,
+  Mic,
+  MicOff,
+  Share,
+  Clock,
+} from "lucide-react";
 import { Card } from "../ui/Card";
 import { InviteModal } from "../ui/InviteModal";
 import { Toast } from "../ui/Toast";
@@ -61,6 +69,9 @@ export const ZoomIntegration: React.FC<ZoomIntegrationProps> = ({
     markSuggestionUsed,
     requestSuggestion,
     sendAudioData,
+    sendDurationUpdate,
+    sendMeetingStart,
+    sendMeetingEnd,
   } = useWebSocket(callId, localStorage.getItem("userId") || undefined);
 
   // Audio capture for transcription
@@ -180,6 +191,43 @@ export const ZoomIntegration: React.FC<ZoomIntegrationProps> = ({
       if (response.success) {
         setMeetingData(response.data.meeting);
 
+        // Create call record ONLY when meeting is successfully created
+        try {
+          const callResponse = await APIService.createCall({
+            title: `AI Sales Call - ${new Date().toLocaleString()}`,
+            meetingId: response.data.meeting.meetingId,
+            platform: "zoom",
+            status: "scheduled",
+            startTime: new Date().toISOString(),
+          });
+
+          console.log("✅ Call record created:", callResponse);
+
+          // Check the response structure and extract ID properly
+          if (
+            callResponse.success &&
+            callResponse.data &&
+            callResponse.data._id
+          ) {
+            localStorage.setItem(
+              "currentDatabaseCallId",
+              callResponse.data._id
+            );
+            localStorage.setItem(
+              "currentMeetingId",
+              response.data.meeting.meetingId
+            );
+            console.log("✅ Stored call ID:", callResponse.data._id);
+          } else {
+            console.error("❌ Invalid call response structure:", callResponse);
+            throw new Error("Invalid response from call creation");
+          }
+        } catch (callError) {
+          console.error("Failed to create call record:", callError);
+          setError("Failed to initialize call session. Please try again.");
+          return;
+        }
+
         if (onMeetingStart) {
           onMeetingStart(response.data.meeting);
         }
@@ -220,16 +268,17 @@ export const ZoomIntegration: React.FC<ZoomIntegrationProps> = ({
 
       console.log("Opening Zoom meeting join URL with ZAK token:", zoomJoinUrl);
 
-      // Open meeting in new tab with ZAK authentication
-      const zoomWindow = window.open(zoomJoinUrl, "_blank", "noopener,noreferrer");
-
-        // Open the AI popup in a separate window (half screen)
-        const popupUrl = `/popup/${callId}`;
-        const popupWindow = window.open(
-          popupUrl,
-          "ai-assistant",
-          `width=${Math.floor(screen.width / 2)},height=${screen.height},scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no,left=${Math.floor(screen.width / 2)},top=0`
-        );
+      // Open the AI popup in a separate window (half screen)
+      const popupUrl = `/popup/${callId}`;
+      const popupWindow = window.open(
+        popupUrl,
+        "ai-assistant",
+        `width=${Math.floor(screen.width / 2)},height=${
+          screen.height
+        },scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no,left=${Math.floor(
+          screen.width / 2
+        )},top=0`
+      );
 
       if (!popupWindow) {
         setError("Popup blocked. Please allow popups for this site.");
@@ -339,13 +388,17 @@ export const ZoomIntegration: React.FC<ZoomIntegrationProps> = ({
       // Open the host URL in a new tab
       const zoomWindow = window.open(hostUrl, "_blank", "noopener,noreferrer");
 
-        // Open the AI popup in a separate window (half screen)
-        const popupUrl = `/popup/${callId}`;
-        const popupWindow = window.open(
-          popupUrl,
-          "ai-assistant",
-          `width=${Math.floor(screen.width / 2)},height=${screen.height},scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no,left=${Math.floor(screen.width / 2)},top=0`
-        );
+      // Open the AI popup in a separate window (half screen)
+      const popupUrl = `/popup/${callId}`;
+      const popupWindow = window.open(
+        popupUrl,
+        "ai-assistant",
+        `width=${Math.floor(screen.width / 2)},height=${
+          screen.height
+        },scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no,left=${Math.floor(
+          screen.width / 2
+        )},top=0`
+      );
 
       if (!popupWindow) {
         setError("Popup blocked. Please allow popups for this site.");
@@ -425,6 +478,479 @@ export const ZoomIntegration: React.FC<ZoomIntegrationProps> = ({
     }
     joinMeeting(meetingNumber);
   };
+
+  // NEW: Meeting duration tracking state
+  const [meetingStartTime, setMeetingStartTime] = useState<Date | null>(null);
+  const [meetingDuration, setMeetingDuration] = useState(0);
+  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(
+    null
+  );
+  const [isTimerActive, setIsTimerActive] = useState(false);
+
+  // NEW: Meeting duration utility functions
+  const formatDuration = useCallback((seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs
+        .toString()
+        .padStart(2, "0")}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, "0")}`;
+  }, []);
+
+  // NEW: Start meeting duration timer (fixed to use correct call ID)
+  const startMeetingTimer = useCallback(async () => {
+    const startTime = new Date();
+    setMeetingStartTime(startTime);
+    setIsTimerActive(true);
+    setMeetingDuration(0);
+
+    // Store start time in localStorage for persistence
+    localStorage.setItem(`meeting_${callId}_start`, startTime.toISOString());
+    localStorage.setItem(`meeting_${callId}_active`, "true");
+
+    // Get the database call ID that was created when we created the meeting
+    const databaseCallId = localStorage.getItem("currentDatabaseCallId");
+
+    console.log("📝 Starting timer for call ID:", databaseCallId || callId);
+
+    // Update existing call status to active (don't create new)
+    try {
+      const callIdToUpdate = databaseCallId || callId;
+      await APIService.updateCall(callIdToUpdate, {
+        status: "active",
+        startTime: startTime.toISOString(),
+      });
+      console.log("✅ Call status updated to active for:", callIdToUpdate);
+    } catch (error) {
+      console.warn("⚠️ Failed to update call status:", error.message);
+    }
+
+    // Send meeting start via WebSocket
+    if (wsConnected && sendMeetingStart) {
+      try {
+        sendMeetingStart(startTime.toISOString());
+      } catch (error) {
+        console.error("Failed to send meeting start via WebSocket:", error);
+      }
+    }
+
+    // Start the timer (only update duration, don't create records)
+    const interval = setInterval(async () => {
+      const now = new Date();
+      const duration = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+      setMeetingDuration(duration);
+
+      // Update localStorage every 10 seconds
+      if (duration % 10 === 0) {
+        localStorage.setItem(`meeting_${callId}_duration`, duration.toString());
+      }
+
+      // Sync with database every 30 seconds (update existing call only)
+      if (duration % 30 === 0) {
+        try {
+          const callIdToUpdate = databaseCallId || callId;
+          await APIService.updateCall(callIdToUpdate, {
+            duration: duration,
+          });
+          console.log(
+            `✅ Duration synced: ${duration}s for call:`,
+            callIdToUpdate
+          );
+        } catch (error) {
+          console.warn(
+            "⚠️ Failed to sync duration to database:",
+            error.message
+          );
+        }
+      }
+
+      // Send duration update via WebSocket every 30 seconds
+      if (duration % 30 === 0 && wsConnected && sendDurationUpdate) {
+        try {
+          sendDurationUpdate(duration);
+        } catch (error) {
+          console.error("Failed to send duration update via WebSocket:", error);
+        }
+      }
+    }, 1000);
+
+    setTimerInterval(interval);
+    console.log(
+      "✅ Meeting duration timer started for call:",
+      databaseCallId || callId
+    );
+  }, [callId, wsConnected, sendMeetingStart, sendDurationUpdate]);
+
+  // NEW: Stop meeting duration timer (fixed to use correct call ID)
+  const stopMeetingTimer = useCallback(async () => {
+    if (!meetingStartTime || !isTimerActive) return;
+
+    const endTime = new Date();
+    const finalDuration = Math.floor(
+      (endTime.getTime() - meetingStartTime.getTime()) / 1000
+    );
+
+    // Clear timer
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      setTimerInterval(null);
+    }
+
+    setIsTimerActive(false);
+    setMeetingDuration(finalDuration);
+
+    // Clean up localStorage
+    localStorage.removeItem(`meeting_${callId}_start`);
+    localStorage.removeItem(`meeting_${callId}_duration`);
+    localStorage.removeItem(`meeting_${callId}_active`);
+
+    // Get the database call ID
+    const databaseCallId = localStorage.getItem("currentDatabaseCallId");
+    const callIdToUpdate = databaseCallId || callId;
+
+    console.log(
+      `📝 Stopping timer for call: ${callIdToUpdate}, duration: ${finalDuration}s`
+    );
+
+    // Update existing call with final duration and completed status
+    try {
+      await APIService.updateCall(callIdToUpdate, {
+        duration: finalDuration,
+        endTime: endTime.toISOString(),
+        status: "completed",
+      });
+
+      console.log(
+        `✅ Call completed with duration: ${finalDuration} seconds for call: ${callIdToUpdate}`
+      );
+    } catch (error) {
+      console.warn("⚠️ Failed to update final call duration:", error.message);
+    }
+
+    // Send via WebSocket if available
+    if (wsConnected && sendMeetingEnd) {
+      try {
+        sendMeetingEnd(endTime.toISOString(), finalDuration);
+      } catch (error) {
+        console.error("Failed to send duration via WebSocket:", error);
+      }
+    }
+  }, [
+    meetingStartTime,
+    timerInterval,
+    isTimerActive,
+    callId,
+    wsConnected,
+    sendMeetingEnd,
+  ]);
+
+  // NEW: Recovery mechanism for page refresh
+  useEffect(() => {
+    const storedStart = localStorage.getItem(`meeting_${callId}_start`);
+    const storedActive = localStorage.getItem(`meeting_${callId}_active`);
+    const storedDuration = localStorage.getItem(`meeting_${callId}_duration`);
+
+    if (storedStart && storedActive === "true" && !isTimerActive) {
+      const startTime = new Date(storedStart);
+      const now = new Date();
+      const recoveredDuration = Math.floor(
+        (now.getTime() - startTime.getTime()) / 1000
+      );
+
+      setMeetingStartTime(startTime);
+      setMeetingDuration(recoveredDuration);
+      setIsTimerActive(true);
+
+      // Resume timer
+      const interval = setInterval(() => {
+        const currentTime = new Date();
+        const duration = Math.floor(
+          (currentTime.getTime() - startTime.getTime()) / 1000
+        );
+        setMeetingDuration(duration);
+
+        if (duration % 10 === 0) {
+          localStorage.setItem(
+            `meeting_${callId}_duration`,
+            duration.toString()
+          );
+        }
+
+        if (duration % 30 === 0 && wsConnected) {
+          try {
+            const durationUpdateEvent = {
+              type: "duration_update",
+              data: {
+                callId: callId,
+                duration: duration,
+                timestamp: new Date().toISOString(),
+              },
+            };
+            sendAudioData(JSON.stringify(durationUpdateEvent));
+          } catch (error) {
+            console.error("Failed to sync duration after recovery:", error);
+          }
+        }
+      }, 1000);
+
+      setTimerInterval(interval);
+      console.log("✅ Meeting timer recovered after page refresh");
+    }
+  }, [callId, isTimerActive, wsConnected, sendAudioData]);
+
+  // NEW: Handle page unload with beacon API for reliable duration saving
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      if (isTimerActive && meetingStartTime) {
+        const finalDuration = Math.floor(
+          (new Date().getTime() - meetingStartTime.getTime()) / 1000
+        );
+
+        const durationData = {
+          callId: callId,
+          duration: finalDuration,
+          endTime: new Date().toISOString(),
+          platform: "zoom",
+          source: "page_unload",
+        };
+
+        // Use navigator.sendBeacon for reliable data sending on page unload
+        if (navigator.sendBeacon) {
+          const blob = new Blob([JSON.stringify(durationData)], {
+            type: "application/json",
+          });
+          navigator.sendBeacon(
+            `${
+              import.meta.env.VITE_API_URL || "http://localhost:3002"
+            }/api/meetings/duration`,
+            blob
+          );
+        }
+
+        // Fallback: try regular fetch with keepalive
+        try {
+          await fetch(
+            `${
+              import.meta.env.VITE_API_URL || "http://localhost:3002"
+            }/api/meetings/duration`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+              },
+              body: JSON.stringify(durationData),
+              keepalive: true,
+            }
+          );
+        } catch (error) {
+          console.error("Failed to save duration on page unload:", error);
+        }
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isTimerActive, meetingStartTime, callId]);
+
+  // NEW: Enhanced joinMeetingAsHost with better call tracking
+  const joinMeetingAsHostWithTimer = useCallback(
+    async (meetingNumber: string, password: string) => {
+      try {
+        // Get the database call ID that should already exist
+        const databaseCallId = localStorage.getItem("currentDatabaseCallId");
+        const meetingId = localStorage.getItem("currentMeetingId");
+
+        console.log("📝 Starting meeting with:", {
+          databaseCallId,
+          meetingId,
+          meetingNumber,
+        });
+
+        if (!databaseCallId) {
+          console.error("❌ No database call ID found");
+          setError("Call initialization failed. Please create a new meeting.");
+          return;
+        }
+
+        // Verify the call exists and update it
+        try {
+          await APIService.updateCall(databaseCallId, {
+            status: "active",
+            startTime: new Date().toISOString(),
+          });
+          console.log("✅ Call status updated to active");
+        } catch (error) {
+          console.error("Failed to update call status:", error);
+          setError("Failed to initialize call session. Please try again.");
+          return;
+        }
+
+        // Start the timer
+        await startMeetingTimer();
+
+        // Call existing function
+        await joinMeetingAsHost(meetingNumber, password);
+      } catch (error) {
+        console.error("Failed to start meeting:", error);
+        // If meeting fails to start, stop the timer
+        if (isTimerActive) {
+          stopMeetingTimer();
+        }
+        setError("Failed to start meeting. Please try again.");
+      }
+    },
+    [startMeetingTimer, joinMeetingAsHost, stopMeetingTimer, isTimerActive]
+  );
+
+  // NEW: Enhanced leaveMeeting with timer integration and state reset (Fixed)
+  const leaveMeetingWithTimer = useCallback(async () => {
+    console.log("🏁 Leave meeting called - Timer active:", isTimerActive);
+
+    // Stop timer and save final duration BEFORE doing anything else
+    if (isTimerActive && meetingStartTime) {
+      console.log("🏁 Stopping timer and saving duration...");
+
+      const endTime = new Date();
+      const finalDuration = Math.floor(
+        (endTime.getTime() - meetingStartTime.getTime()) / 1000
+      );
+
+      // Clear timer immediately
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        setTimerInterval(null);
+      }
+
+      setIsTimerActive(false);
+      setMeetingDuration(finalDuration);
+
+      // Get the database call ID
+      const databaseCallId = localStorage.getItem("currentDatabaseCallId");
+      const callIdToUpdate = databaseCallId || callId;
+
+      console.log(
+        `🏁 Saving final duration: ${finalDuration}s for call: ${callIdToUpdate}`
+      );
+
+      // Update existing call with final duration and completed status - use AWAIT
+      try {
+        await APIService.updateCall(callIdToUpdate, {
+          duration: finalDuration,
+          endTime: endTime.toISOString(),
+          status: "completed",
+        });
+
+        console.log(
+          `✅ Call completed with duration: ${finalDuration} seconds`
+        );
+
+        setToast({
+          message: `Meeting completed - Duration: ${Math.floor(
+            finalDuration / 60
+          )}m ${finalDuration % 60}s`,
+          type: "success",
+          isVisible: true,
+        });
+      } catch (error) {
+        console.warn("⚠️ Failed to update final call duration:", error.message);
+
+        // Try WebSocket as fallback
+        if (wsConnected && sendMeetingEnd) {
+          try {
+            sendMeetingEnd(endTime.toISOString(), finalDuration);
+            console.log("✅ Duration sent via WebSocket as fallback");
+          } catch (wsError) {
+            console.error("Failed to send duration via WebSocket:", wsError);
+          }
+        }
+      }
+
+      // Clean up localStorage
+      localStorage.removeItem(`meeting_${callId}_start`);
+      localStorage.removeItem(`meeting_${callId}_duration`);
+      localStorage.removeItem(`meeting_${callId}_active`);
+    }
+
+    // Clean up local storage for database call ID
+    localStorage.removeItem("currentDatabaseCallId");
+
+    // Now handle the Zoom SDK cleanup
+    if (window.ZoomMtg) {
+      window.ZoomMtg.leaveMeeting({
+        success: () => {
+          console.log("✅ Zoom SDK leave meeting successful");
+          handleMeetingEndCleanup();
+        },
+        error: () => {
+          console.log(
+            "⚠️ Zoom SDK leave meeting failed, but continuing cleanup"
+          );
+          handleMeetingEndCleanup();
+        },
+      });
+    } else {
+      console.log("⚠️ Zoom SDK not available, doing direct cleanup");
+      handleMeetingEndCleanup();
+    }
+
+    // Cleanup function to reset UI state
+    function handleMeetingEndCleanup() {
+      // Reset all meeting-related state to go back to create meeting view
+      setIsMeetingActive(false);
+      setMeetingData(null);
+      setMeetingNumber("");
+      setTranscripts([]);
+      setAiSuggestions([]);
+      setParticipants([]);
+      setError(null);
+
+      // Reset audio/video states
+      setIsVideoOn(true);
+      setIsAudioOn(true);
+      setIsScreenSharing(false);
+
+      // Stop audio recording if active
+      if (isAudioRecording) {
+        stopAudioRecording();
+      }
+
+      // Leave WebSocket call
+      if (wsConnected) {
+        leaveCall(callId);
+      }
+
+      // Show completion message
+      if (!toast.isVisible) {
+        setToast({
+          message:
+            "Left meeting successfully. You can now create a new meeting.",
+          type: "success",
+          isVisible: true,
+        });
+      }
+
+      if (onMeetingEnd) {
+        onMeetingEnd();
+      }
+    }
+  }, [
+    isTimerActive,
+    meetingStartTime,
+    timerInterval,
+    callId,
+    wsConnected,
+    sendMeetingEnd,
+    isAudioRecording,
+    stopAudioRecording,
+    leaveCall,
+    onMeetingEnd,
+    toast.isVisible,
+  ]);
 
   if (!isSDKLoaded) {
     return (
@@ -521,7 +1047,7 @@ export const ZoomIntegration: React.FC<ZoomIntegrationProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
                       onClick={() =>
-                        joinMeetingAsHost(
+                        joinMeetingAsHostWithTimer(
                           meetingData.meetingId,
                           meetingData.password
                         )
@@ -673,15 +1199,28 @@ export const ZoomIntegration: React.FC<ZoomIntegrationProps> = ({
           ) : (
             <div className="space-y-4">
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                <div className="flex items-center">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse mr-3" />
-                  <span className="text-emerald-800 font-medium">
-                    Meeting Active
-                  </span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse mr-3" />
+                    <span className="text-emerald-800 font-medium">
+                      Meeting Active
+                    </span>
+                  </div>
+                  {/* NEW: Live duration display */}
+                  {isTimerActive && (
+                    <div className="flex items-center bg-white px-3 py-1 rounded-full border border-emerald-200">
+                      <Clock className="h-4 w-4 text-emerald-600 mr-2" />
+                      <span className="font-mono text-emerald-700 font-semibold">
+                        {formatDuration(meetingDuration)}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <p className="text-emerald-700 text-sm mt-1">
                   AI assistance is monitoring your call and providing real-time
                   suggestions.
+                  {isTimerActive &&
+                    ` Duration: ${formatDuration(meetingDuration)}`}
                 </p>
               </div>
 
@@ -729,7 +1268,7 @@ export const ZoomIntegration: React.FC<ZoomIntegrationProps> = ({
                 </div>
 
                 <button
-                  onClick={leaveMeeting}
+                  onClick={leaveMeetingWithTimer}
                   className="bg-red-50 hover:bg-red-100 text-red-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200 border border-red-200"
                 >
                   Leave Meeting

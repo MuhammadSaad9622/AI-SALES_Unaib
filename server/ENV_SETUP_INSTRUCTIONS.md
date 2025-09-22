@@ -68,7 +68,7 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret-here
 ### Frontend Configuration (Vite Environment Variables)
 ```env
 # API Configuration
-VITE_API_URL=https://ai-sales-unaib.onrender.com
+VITE_API_URL=http://localhost:3002
 
 # Zoom SDK Configuration
 VITE_ZOOM_SDK_KEY=your-zoom-sdk-key-here
@@ -116,7 +116,7 @@ RATE_LIMIT_MAX_REQUESTS=10000
 2. Create a new project or select existing
 3. Enable Google Calendar API
 4. Create OAuth 2.0 credentials
-5. Add authorized redirect URI: `https://ai-sales-unaib.onrender.com/api/meetings/google/callback`
+5. Add authorized redirect URI: `http://localhost:3002/api/meetings/google/callback`
 6. Add credentials to your `.env` file
 
 ## Installation Steps
